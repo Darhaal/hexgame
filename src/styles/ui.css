@@ -1,0 +1,35 @@
+/* src/styles/ui.css - basic UI styles for panels */
+#tile-panel {
+  position: absolute;
+  left: 0;
+  top: 50%;
+  width: 200px;
+  background: rgba(255,255,255,0.85);
+  padding: 10px;
+  transform: translateY(-50%);
+  border-radius: 8px;
+  transition: transform 0.2s;
+}
+#tile-panel.hidden {
+  transform: translate(-180px, -50%);
+}
+#tile-panel-toggle {
+  position: absolute;
+  left: 0;
+  top: 50%;
+  width: 20px;
+  height: 40px;
+  background: #444;
+  color: white;
+  transform: translate(-20px, -50%);
+  cursor: pointer;
+}
+#player-ui {
+  position: absolute;
+  right: 10px;
+  top: 10px;
+  color: #fff;
+  background: rgba(0,0,0,0.6);
+  padding: 10px;
+  border-radius: 8px;
+}

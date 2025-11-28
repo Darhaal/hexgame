@@ -1,4 +1,3 @@
-// src/engine/draw/drawBorder.js
 /**
  * Draw decorative "wood" tiles on the map's outer edges.
  * This module preloads an image for a repeating pattern.
@@ -21,8 +20,9 @@ let imageLoaded = false;
   img.onerror = () => { imageLoaded = false; loadedImage = null; };
 })();
 
+// Обновленная функция отрисовки контура для Flat Top
 function hexPath(ctx, x, y, size) {
-  const start = Math.PI / 6;
+  const start = 0; // Начинаем с 0 для плоского верха
   ctx.beginPath();
   for (let i = 0; i < 6; i++) {
     const a = start + (i * Math.PI) / 3;
@@ -49,21 +49,20 @@ export function drawBorder(ctx, tiles, TILE_SIZE = 100) {
         woodPattern = null;
       }
     } else {
-      // Image not loaded yet — skip drawing border (will appear on next redraw)
       return;
     }
   }
 
   ctx.save();
-  const strokeW = Math.max(6, TILE_SIZE * 0.1);
   const sizeInner = TILE_SIZE;
   for (const tile of tiles) {
     for (const off of RING_1) {
       const q = tile.q + off.q;
       const r = tile.r + off.r;
-      // if neighbour exists → no border here
       if (tiles.some(t => t.q === q && t.r === r)) continue;
+
       const p = axialToPixel(q, r, TILE_SIZE);
+
       // wood fill
       ctx.fillStyle = woodPattern;
       hexPath(ctx, p.x, p.y, sizeInner);

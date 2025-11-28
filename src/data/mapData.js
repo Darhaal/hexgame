@@ -1,7 +1,10 @@
-import { TILE_TYPES } from "./tileTypes.js";
+// src/data/mapData.js
+import { TILE_TYPES } from "./tileTypes";
 
-const mapData = [
+const rawMapData = [
+  //
   // --- Прохоровка ---
+  //
   { q: -1, r: -2, name: "Прохорівка", type: TILE_TYPES.village },
   { q: 1, r: -2, name: "Прохорівка", type: TILE_TYPES.village },
   { q: 2, r: -2, name: "Прохорівка", type: TILE_TYPES.village },
@@ -24,7 +27,9 @@ const mapData = [
   { q: 5, r: -1, name: "Прохорівка", type: TILE_TYPES.village },
   { q: 6, r: -2, name: "Прохорівка", type: TILE_TYPES.village },
 
+  //
   // --- Сушки ---
+  //
   { q: 7, r: 2, name: "Сушки", type: TILE_TYPES.village },
   { q: 4, r: 3, name: "Сушки", type: TILE_TYPES.village },
   { q: 5, r: 3, name: "Сушки", type: TILE_TYPES.village },
@@ -46,12 +51,16 @@ const mapData = [
   { q: 9, r: 1, name: "Сушки", type: TILE_TYPES.village },
   { q: 9, r: 0, name: "Сушки", type: TILE_TYPES.village },
 
+  //
   // --- Пекари ---
+  //
   { q: -8, r: 1, name: "Пекари", type: TILE_TYPES.village },
   { q: -8, r: 0, name: "Пекари", type: TILE_TYPES.village },
   { q: -9, r: 1, name: "Пекари", type: TILE_TYPES.village },
 
+  //
   // --- Келеберда ---
+  //
   { q: -2, r: -6, name: "Келеберда", type: TILE_TYPES.village },
   { q: -1, r: -5, name: "Келеберда", type: TILE_TYPES.village },
   { q: -1, r: -6, name: "Келеберда", type: TILE_TYPES.village },
@@ -60,7 +69,7 @@ const mapData = [
   { q: 0, r: -7, name: "Келеберда", type: TILE_TYPES.village },
 
   //
-  // Озера
+  // --- Озера ---
   //
   { q: -1,  r: 3,  name: "Озеро", type: TILE_TYPES.lake },
   { q: 0,   r: 4,  name: "Озеро", type: TILE_TYPES.lake },
@@ -81,109 +90,111 @@ const mapData = [
   { q: -12, r: 9,  name: "Озеро", type: TILE_TYPES.lake },
   { q: -9,  r: 7,  name: "Озеро", type: TILE_TYPES.lake },
 
-    //
-    // Fields
-    //
-    { q: 2, r: 2, type: TILE_TYPES.field },
-    { q: 2, r: 3, type: TILE_TYPES.field },
-    { q: 2, r: 4, type: TILE_TYPES.field },
-    { q: 2, r: 5, type: TILE_TYPES.field },
-    { q: 2, r: 6, type: TILE_TYPES.field },
-    { q: 3, r: 2, type: TILE_TYPES.field },
-    { q: 3, r: 3, type: TILE_TYPES.field },
-    { q: 3, r: 4, type: TILE_TYPES.field },
-    { q: 3, r: 6, type: TILE_TYPES.field },
-    { q: 4, r: 7, type: TILE_TYPES.field },
-    { q: 4, r: 8, type: TILE_TYPES.field },
-    { q: 4, r: 9, type: TILE_TYPES.field },
-    { q: 5, r: 7, type: TILE_TYPES.field },
-    { q: 5, r: 8, type: TILE_TYPES.field },
-    { q: 6, r: 6, type: TILE_TYPES.field },
-    { q: 6, r: 7, type: TILE_TYPES.field },
-    { q: 7, r: 6, type: TILE_TYPES.field },
-    { q: 7, r: -1, type: TILE_TYPES.field },
-    { q: 8, r: -1, type: TILE_TYPES.field },
-    { q: 9, r: -1, type: TILE_TYPES.field },
-    { q: 7, r: -2, type: TILE_TYPES.field },
-    { q: 8, r: -2, type: TILE_TYPES.field },
-    { q: 9, r: -2, type: TILE_TYPES.field },
-    { q: 7, r: -3, type: TILE_TYPES.field },
-    { q: 8, r: -3, type: TILE_TYPES.field },
-    { q: 9, r: -3, type: TILE_TYPES.field },
-    { q: 7, r: -4, type: TILE_TYPES.field },
-    { q: 8, r: -4, type: TILE_TYPES.field },
-    { q: 9, r: -4, type: TILE_TYPES.field },
-    { q: 7, r: -5, type: TILE_TYPES.field },
-    { q: 8, r: -5, type: TILE_TYPES.field },
-    { q: 9, r: -5, type: TILE_TYPES.field },
-    { q: 7, r: -6, type: TILE_TYPES.field },
-    { q: 8, r: -6, type: TILE_TYPES.field },
-    { q: 9, r: -6, type: TILE_TYPES.field },
-    { q: 8, r: -7, type: TILE_TYPES.field },
-    { q: 9, r: -7, type: TILE_TYPES.field },
-    { q: -8, r: 2, type: TILE_TYPES.field },
-    { q: -8, r: 3, type: TILE_TYPES.field },
-    { q: -8, r: 4, type: TILE_TYPES.field },
-    { q: -9, r: 2, type: TILE_TYPES.field },
-    { q: -9, r: 3, type: TILE_TYPES.field },
-    { q: -9, r: 4, type: TILE_TYPES.field },
-    { q: -10, r: 2, type: TILE_TYPES.field },
-    { q: -10, r: 3, type: TILE_TYPES.field },
-    { q: -10, r: 4, type: TILE_TYPES.field },
-    { q: -11, r: 3, type: TILE_TYPES.field },
-    { q: -11, r: 4, type: TILE_TYPES.field },
-    { q: -12, r: 4, type: TILE_TYPES.field },
-    { q: -10, r: 5, type: TILE_TYPES.field },
-    { q: -11, r: 5, type: TILE_TYPES.field },
-    { q: -12, r: 5, type: TILE_TYPES.field },
-    { q: -13, r: 5, type: TILE_TYPES.field },
-    { q: -13, r: 6, type: TILE_TYPES.field },
-    { q: -6, r: 15, type: TILE_TYPES.field },
-    { q: -7, r: 15, type: TILE_TYPES.field },
-    { q: -8, r: 15, type: TILE_TYPES.field },
-    { q: -8, r: 14, type: TILE_TYPES.field },
-    { q: -9, r: 15, type: TILE_TYPES.field },
-    { q: -9, r: 14, type: TILE_TYPES.field },
-    { q: -10, r: 15, type: TILE_TYPES.field },
-    { q: -12, r: 15, type: TILE_TYPES.field },
-    { q: -13, r: 15, type: TILE_TYPES.field },
-    { q: -13, r: 14, type: TILE_TYPES.field },
-    { q: -12, r: 14, type: TILE_TYPES.field },
-    { q: -13, r: 13, type: TILE_TYPES.field },
-    { q: -12, r: 13, type: TILE_TYPES.field },
-    { q: -10, r: 12, type: TILE_TYPES.field },
-    { q: -11, r: 13, type: TILE_TYPES.field },
-    { q: -13, r: 7, type: TILE_TYPES.field },
-    { q: -13, r: 8, type: TILE_TYPES.field },
-    { q: -13, r: 9, type: TILE_TYPES.field },
-    { q: -13, r: 10, type: TILE_TYPES.field },
-    { q: -12, r: 8, type: TILE_TYPES.field },
-    { q: -12, r: 10, type: TILE_TYPES.field },
-    { q: -12, r: 11, type: TILE_TYPES.field },
-    { q: -11, r: 8, type: TILE_TYPES.field },
-    { q: -11, r: 9, type: TILE_TYPES.field },
-    { q: -11, r: 10, type: TILE_TYPES.field },
-    { q: -11, r: 11, type: TILE_TYPES.field },
-    { q: -11, r: 6, type: TILE_TYPES.field },
-    { q: -12, r: 6, type: TILE_TYPES.field },
-    { q: -10, r: 13, type: TILE_TYPES.field },
-    { q: -10, r: 7, type: TILE_TYPES.field },
-    { q: -10, r: 8, type: TILE_TYPES.field },
-    { q: -10, r: 9, type: TILE_TYPES.field },
-    { q: -10, r: 10, type: TILE_TYPES.field },
-    { q: -10, r: 6, type: TILE_TYPES.field },
-    { q: -8, r: 9, type: TILE_TYPES.field },
-    { q: -8, r: 10, type: TILE_TYPES.field },
-    { q: -8, r: 11, type: TILE_TYPES.field },
-    { q: -7, r: 8, type: TILE_TYPES.field },
-    { q: -7, r: 10, type: TILE_TYPES.field },
-    { q: -9, r: 8, type: TILE_TYPES.field },
-    { q: -9, r: 9, type: TILE_TYPES.field },
-    { q: -9, r: 10, type: TILE_TYPES.field },
-    { q: -8, r: 5, type: TILE_TYPES.field },
-    { q: -8, r: 6, type: TILE_TYPES.field },
+  //
+  // --- Поля (Fields) ---
+  //
+  { q: 2, r: 2, type: TILE_TYPES.field },
+  { q: 2, r: 3, type: TILE_TYPES.field },
+  { q: 2, r: 4, type: TILE_TYPES.field },
+  { q: 2, r: 5, type: TILE_TYPES.field },
+  { q: 2, r: 6, type: TILE_TYPES.field },
+  { q: 3, r: 2, type: TILE_TYPES.field },
+  { q: 3, r: 3, type: TILE_TYPES.field },
+  { q: 3, r: 4, type: TILE_TYPES.field },
+  { q: 3, r: 6, type: TILE_TYPES.field },
+  { q: 4, r: 7, type: TILE_TYPES.field },
+  { q: 4, r: 8, type: TILE_TYPES.field },
+  { q: 4, r: 9, type: TILE_TYPES.field },
+  { q: 5, r: 7, type: TILE_TYPES.field },
+  { q: 5, r: 8, type: TILE_TYPES.field },
+  { q: 6, r: 6, type: TILE_TYPES.field },
+  { q: 6, r: 7, type: TILE_TYPES.field },
+  { q: 7, r: 6, type: TILE_TYPES.field },
+  { q: 7, r: -1, type: TILE_TYPES.field },
+  { q: 8, r: -1, type: TILE_TYPES.field },
+  { q: 9, r: -1, type: TILE_TYPES.field },
+  { q: 7, r: -2, type: TILE_TYPES.field },
+  { q: 8, r: -2, type: TILE_TYPES.field },
+  { q: 9, r: -2, type: TILE_TYPES.field },
+  { q: 7, r: -3, type: TILE_TYPES.field },
+  { q: 8, r: -3, type: TILE_TYPES.field },
+  { q: 9, r: -3, type: TILE_TYPES.field },
+  { q: 7, r: -4, type: TILE_TYPES.field },
+  { q: 8, r: -4, type: TILE_TYPES.field },
+  { q: 9, r: -4, type: TILE_TYPES.field },
+  { q: 7, r: -5, type: TILE_TYPES.field },
+  { q: 8, r: -5, type: TILE_TYPES.field },
+  { q: 9, r: -5, type: TILE_TYPES.field },
+  { q: 7, r: -6, type: TILE_TYPES.field },
+  { q: 8, r: -6, type: TILE_TYPES.field },
+  { q: 9, r: -6, type: TILE_TYPES.field },
+  { q: 8, r: -7, type: TILE_TYPES.field },
+  { q: 9, r: -7, type: TILE_TYPES.field },
+  { q: -8, r: 2, type: TILE_TYPES.field },
+  { q: -8, r: 3, type: TILE_TYPES.field },
+  { q: -8, r: 4, type: TILE_TYPES.field },
+  { q: -9, r: 2, type: TILE_TYPES.field },
+  { q: -9, r: 3, type: TILE_TYPES.field },
+  { q: -9, r: 4, type: TILE_TYPES.field },
+  { q: -10, r: 2, type: TILE_TYPES.field },
+  { q: -10, r: 3, type: TILE_TYPES.field },
+  { q: -10, r: 4, type: TILE_TYPES.field },
+  { q: -11, r: 3, type: TILE_TYPES.field },
+  { q: -11, r: 4, type: TILE_TYPES.field },
+  { q: -12, r: 4, type: TILE_TYPES.field },
+  { q: -10, r: 5, type: TILE_TYPES.field },
+  { q: -11, r: 5, type: TILE_TYPES.field },
+  { q: -12, r: 5, type: TILE_TYPES.field },
+  { q: -13, r: 5, type: TILE_TYPES.field },
+  { q: -13, r: 6, type: TILE_TYPES.field },
+  { q: -6, r: 15, type: TILE_TYPES.field },
+  { q: -7, r: 15, type: TILE_TYPES.field },
+  { q: -8, r: 15, type: TILE_TYPES.field },
+  { q: -8, r: 14, type: TILE_TYPES.field },
+  { q: -9, r: 15, type: TILE_TYPES.field },
+  { q: -9, r: 14, type: TILE_TYPES.field },
+  { q: -10, r: 15, type: TILE_TYPES.field },
+  { q: -12, r: 15, type: TILE_TYPES.field },
+  { q: -13, r: 15, type: TILE_TYPES.field },
+  { q: -13, r: 14, type: TILE_TYPES.field },
+  { q: -12, r: 14, type: TILE_TYPES.field },
+  { q: -13, r: 13, type: TILE_TYPES.field },
+  { q: -12, r: 13, type: TILE_TYPES.field },
+  { q: -10, r: 12, type: TILE_TYPES.field },
+  { q: -11, r: 13, type: TILE_TYPES.field },
+  { q: -13, r: 7, type: TILE_TYPES.field },
+  { q: -13, r: 8, type: TILE_TYPES.field },
+  { q: -13, r: 9, type: TILE_TYPES.field },
+  { q: -13, r: 10, type: TILE_TYPES.field },
+  { q: -12, r: 8, type: TILE_TYPES.field },
+  { q: -12, r: 10, type: TILE_TYPES.field },
+  { q: -12, r: 11, type: TILE_TYPES.field },
+  { q: -11, r: 8, type: TILE_TYPES.field },
+  { q: -11, r: 9, type: TILE_TYPES.field },
+  { q: -11, r: 10, type: TILE_TYPES.field },
+  { q: -11, r: 11, type: TILE_TYPES.field },
+  { q: -11, r: 6, type: TILE_TYPES.field },
+  { q: -12, r: 6, type: TILE_TYPES.field },
+  { q: -10, r: 13, type: TILE_TYPES.field },
+  { q: -10, r: 7, type: TILE_TYPES.field },
+  { q: -10, r: 8, type: TILE_TYPES.field },
+  { q: -10, r: 9, type: TILE_TYPES.field },
+  { q: -10, r: 10, type: TILE_TYPES.field },
+  { q: -10, r: 6, type: TILE_TYPES.field },
+  { q: -8, r: 9, type: TILE_TYPES.field },
+  { q: -8, r: 10, type: TILE_TYPES.field },
+  { q: -8, r: 11, type: TILE_TYPES.field },
+  { q: -7, r: 8, type: TILE_TYPES.field },
+  { q: -7, r: 10, type: TILE_TYPES.field },
+  { q: -9, r: 8, type: TILE_TYPES.field },
+  { q: -9, r: 9, type: TILE_TYPES.field },
+  { q: -9, r: 10, type: TILE_TYPES.field },
+  { q: -8, r: 5, type: TILE_TYPES.field },
+  { q: -8, r: 6, type: TILE_TYPES.field },
 
-  // Леса
+  //
+  // --- Леса ---
+  //
   { q: -1, r: 4,  name: "Лес", type: TILE_TYPES.forest },
   { q: -1, r: 10, name: "Лес", type: TILE_TYPES.forest },
   { q: -1, r: 11, name: "Лес", type: TILE_TYPES.forest },
@@ -207,8 +218,8 @@ const mapData = [
   { q: 1,  r: 11, name: "Лес", type: TILE_TYPES.forest },
   { q: 2,  r: 8,  name: "Лес", type: TILE_TYPES.forest },
   { q: 2,  r: 9,  name: "Лес", type: TILE_TYPES.forest },
-  { q: 2,  r: 10, name: "Лес", type: TILE_TYPES.forest },
-  { q: 2,  r: 11, name: "Лес", type: TILE_TYPES.forest },
+  { q: 2,  r: 10,  name: "Лес", type: TILE_TYPES.forest },
+  { q: 2,  r: 11,  name: "Лес", type: TILE_TYPES.forest },
   { q: 3,  r: 9,  name: "Лес", type: TILE_TYPES.forest },
   { q: 3,  r: 10, name: "Лес", type: TILE_TYPES.forest },
   { q: 5,  r: 0,  name: "Лес", type: TILE_TYPES.forest },
@@ -288,7 +299,9 @@ const mapData = [
   { q: -7, r: 6,  name: "Лес", type: TILE_TYPES.forest },
   { q: -7, r: 7,  name: "Лес", type: TILE_TYPES.forest },
 
-  // Реки
+  //
+  // --- Реки ---
+  //
   { q: 0,  r: 7,  name: "Горловка", type: TILE_TYPES.river },
   { q: 1,  r: 6,  name: "Горловка", type: TILE_TYPES.river },
   { q: 1,  r: 7,  name: "Горловка", type: TILE_TYPES.river },
@@ -301,7 +314,6 @@ const mapData = [
   { q: 7,  r: 5,  name: "Горловка", type: TILE_TYPES.river },
   { q: 8,  r: 3,  name: "Горловка", type: TILE_TYPES.river },
   { q: 8,  r: 4,  name: "Горловка", type: TILE_TYPES.river },
-
   { q: -6, r: 14, name: "Рось", type: TILE_TYPES.river },
   { q: -7, r: 14, name: "Рось", type: TILE_TYPES.river },
   { q: -7, r: 13, name: "Рось", type: TILE_TYPES.river },
@@ -318,7 +330,7 @@ const mapData = [
   { q: -13, r: 11, name: "Рось", type: TILE_TYPES.river },
 
   //
-  // ДНЕПР (Great River)
+  // --- ДНЕПР ---
   //
   { q: -2, r: 4,  name: "Днепр", type: TILE_TYPES.great_river },
   { q: -3, r: 4,  name: "Днепр", type: TILE_TYPES.great_river },
@@ -346,7 +358,6 @@ const mapData = [
   { q: -2, r: 11, name: "Днепр", type: TILE_TYPES.great_river },
   { q: -2, r: 10, name: "Днепр", type: TILE_TYPES.great_river },
   { q: -1, r: 9,  name: "Днепр", type: TILE_TYPES.great_river },
-
   { q: -6, r: -2, name: "Днепр", type: TILE_TYPES.great_river },
   { q: -2, r: -5, name: "Днепр", type: TILE_TYPES.great_river },
   { q: -6, r: -1, name: "Днепр", type: TILE_TYPES.great_river },
@@ -359,7 +370,6 @@ const mapData = [
   { q: -7, r: 1,  name: "Днепр", type: TILE_TYPES.great_river },
   { q: -7, r: 2,  name: "Днепр", type: TILE_TYPES.great_river },
   { q: -7, r: 3,  name: "Днепр", type: TILE_TYPES.great_river },
-
   { q: -2, r: 1,  name: "Днепр", type: TILE_TYPES.great_river },
   { q: -2, r: 2,  name: "Днепр", type: TILE_TYPES.great_river },
   { q: -2, r: 3,  name: "Днепр", type: TILE_TYPES.great_river },
@@ -370,7 +380,6 @@ const mapData = [
   { q: -2, r: -2, name: "Днепр", type: TILE_TYPES.great_river },
   { q: -2, r: -1, name: "Днепр", type: TILE_TYPES.great_river },
   { q: -2, r: 0,  name: "Днепр", type: TILE_TYPES.great_river },
-
   { q: -4, r: 13, name: "Днепр", type: TILE_TYPES.great_river },
   { q: -4, r: 12, name: "Днепр", type: TILE_TYPES.great_river },
   { q: -3, r: 13, name: "Днепр", type: TILE_TYPES.great_river },
@@ -381,7 +390,7 @@ const mapData = [
   { q: -4, r: 15, name: "Днепр", type: TILE_TYPES.great_river },
 
   //
-  // Заводи Днепра (Lough River)
+  // --- Острова и Заводи ---
   //
   { q: -3, r: 0,  name: "Заводи Днепра", type: TILE_TYPES.lough_river },
   { q: -3, r: 1,  name: "Заводи Днепра", type: TILE_TYPES.lough_river },
@@ -396,9 +405,6 @@ const mapData = [
   { q: -4, r: -4, name: "Заводи Днепра", type: TILE_TYPES.lough_river },
   { q: -5, r: -3, name: "Заводи Днепра", type: TILE_TYPES.lough_river },
 
-  //
-  // Острова Днепра (Islands)
-  //
   { q: -3, r: -3, name: "Острова Днепра", type: TILE_TYPES.island },
   { q: -4, r: -3, name: "Острова Днепра", type: TILE_TYPES.island },
   { q: -3, r: -2, name: "Острова Днепра", type: TILE_TYPES.island },
@@ -422,5 +428,24 @@ const mapData = [
   { q: -4, r: 8,  name: "Острова Днепра", type: TILE_TYPES.island },
   { q: -4, r: 9,  name: "Острова Днепра", type: TILE_TYPES.island },
 ];
+
+// --- ИТОГОВАЯ СБОРКА ДАННЫХ ---
+const mapData = rawMapData.map(tile => {
+  // 1. Превращаем тип-объект в тип-строку (если нужно)
+  const typeId = (tile.type && typeof tile.type === 'object') ? tile.type.id : tile.type;
+
+  let variant = null;
+
+  // 2. Генерируем номер картинки (1-10) для леса и поля
+  if (typeId === 'forest' || typeId === 'field') {
+      variant = (Math.abs(tile.q * 13 + tile.r * 7) % 5) + 1;
+  }
+
+  return {
+    ...tile,
+    type: typeId,
+    variant: variant
+  };
+});
 
 export default mapData;

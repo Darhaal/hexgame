@@ -54,7 +54,7 @@ if (typeof window !== "undefined") {
 const COLORS = {
   village: "#E8DCCA", lake: "#AEC6CF", river: "#9BC4D4",
   great_river: "#8AAEC4", lough_river: "#A4BFCB", island: "#B8C9A5",
-  forest: "#B8C9A5", field: "#E3D8AA", default: "#F0E6D2"
+  forest: "#B8C9A5", field: "#B8C9A5", default: "#F0E6D2"
 };
 
 function getTileImage(tile) { return null; }

@@ -1,71 +1,188 @@
 import { drawBorder } from "./drawBorder";
-import { drawHexBase, drawHexOverlay } from "./drawHex";
+import { drawHexBase, drawHexOverlay, drawHexShores } from "./drawHex";
 import { drawPlayer } from "./drawPlayer";
 import { drawReachable } from "./drawReachable";
 import { axialToPixel } from "../hex/hexUtils";
 
-export async function drawScene({ canvas, camera, mapData, playerPos, reachableMap }) {
+// Кеш для карты течений
+let cachedFlowMap = null;
+let cachedMapRef = null;
+
+function isWater(t) {
+  return t && ['river', 'great_river', 'lake', 'lough_river'].includes(t.type);
+}
+
+function isRiver(t) {
+  return t && t.type === 'river';
+}
+
+function isSink(t) {
+  // ТЕПЕРЬ СТОК - ТОЛЬКО ГЛАВНАЯ РЕКА
+  // Озера исключены, чтобы реки в них не текли
+  return t && (t.type === 'great_river');
+}
+
+// Хелпер для определения группы воды (для берегов)
+function getWaterGroup(type) {
+    if (type === 'river' || type === 'great_river') return 'river_sys';
+    if (type === 'lake' || type === 'lough_river') return 'lake_sys';
+    return 'land';
+}
+
+/**
+ * Рассчитывает направления течения методом поиска пути (BFS).
+ */
+function calculateFlowMap(mapData, tileSize) {
+  const flowMap = new Map();
+  const tileMap = new Map();
+
+  mapData.forEach(t => tileMap.set(`${t.q},${t.r}`, t));
+
+  const getNeighbors = (t) => {
+    const offsets = [
+      {q:1,r:0}, {q:1,r:-1}, {q:0,r:-1},
+      {q:-1,r:0}, {q:-1,r:1}, {q:0,r:1}
+    ];
+    return offsets
+      .map(off => tileMap.get(`${t.q + off.q},${t.r + off.r}`))
+      .filter(n => n !== undefined);
+  };
+
+  // 1. Днепр и Озера
+  mapData.forEach(t => {
+    if (t.type === 'great_river') {
+       let angle = 90;
+       const neighbors = getNeighbors(t).filter(n => n.type === 'great_river');
+       const selfP = axialToPixel(t.q, t.r, tileSize);
+
+       const downstream = neighbors.find(n => {
+          const nP = axialToPixel(n.q, n.r, tileSize);
+          return nP.y > selfP.y + 1;
+       });
+
+       if (downstream) {
+          const nP = axialToPixel(downstream.q, downstream.r, tileSize);
+          angle = Math.atan2(nP.y - selfP.y, nP.x - selfP.x) * (180 / Math.PI);
+       }
+       flowMap.set(`${t.q},${t.r}`, angle);
+    } else if (t.type === 'lake' || t.type === 'lough_river') {
+       flowMap.set(`${t.q},${t.r}`, 0);
+    }
+  });
+
+  // 2. BFS для обычных рек
+  const queue = [];
+  const parents = new Map();
+  const visited = new Set();
+
+  mapData.forEach(t => {
+    if (isSink(t)) {
+      queue.push(t);
+      visited.add(t);
+    }
+  });
+
+  while (queue.length > 0) {
+    const curr = queue.shift();
+    const neighbors = getNeighbors(curr);
+
+    for (const n of neighbors) {
+      if (isRiver(n) && !visited.has(n)) {
+        visited.add(n);
+        parents.set(n, curr);
+        queue.push(n);
+      }
+    }
+  }
+
+  parents.forEach((target, source) => {
+     const sP = axialToPixel(source.q, source.r, tileSize);
+     const tP = axialToPixel(target.q, target.r, tileSize);
+     const angle = Math.atan2(tP.y - sP.y, tP.x - sP.x) * (180 / Math.PI);
+     flowMap.set(`${source.q},${source.r}`, angle);
+  });
+
+  mapData.forEach(t => {
+    if (isRiver(t) && !flowMap.has(`${t.q},${t.r}`)) {
+       if (t.name === "Рось") flowMap.set(`${t.q},${t.r}`, 0);
+       else if (t.name === "Горловка") flowMap.set(`${t.q},${t.r}`, 180);
+       else flowMap.set(`${t.q},${t.r}`, 90);
+    }
+  });
+
+  return flowMap;
+}
+
+export async function drawScene({ canvas, camera, mapData, playerPos, reachableMap, tick }) {
   if (!canvas || !canvas.getContext) return;
   const ctx = canvas.getContext("2d");
   if (!canvas.width || !canvas.height) return;
 
-  // 1. Очистка
   ctx.setTransform(1, 0, 0, 1, 0, 0);
   ctx.fillStyle = "#000";
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-  // 2. Камера
   ctx.save();
   ctx.translate(camera.offsetX, camera.offsetY);
   ctx.scale(camera.scale, camera.scale);
 
   const TILE_SIZE = 100;
 
-  // 3. Рамка
-  // (Предполагается, что drawBorder использует hexUtils, тогда она сама подстроится,
-  // если нет - вам нужно обновить математику и там)
-  if (typeof drawBorder === 'function') {
-     await drawBorder(ctx, mapData, TILE_SIZE);
+  if (mapData !== cachedMapRef) {
+    cachedFlowMap = calculateFlowMap(mapData, TILE_SIZE);
+    cachedMapRef = mapData;
   }
 
-  // --- СОРТИРОВКА (FLAT TOP) ---
-  // Для Flat Top важно рисовать сверху вниз по экрану (по Y).
-  // Y зависит от r + q/2.
+  if (drawBorder) await drawBorder(ctx, mapData, TILE_SIZE);
+
+  const tileTypeMap = new Map();
+  mapData.forEach(t => tileTypeMap.set(`${t.q},${t.r}`, t.type));
+
   const sortedMap = [...mapData].sort((a, b) => {
-    // Вычисляем "вес" позиции по вертикали экрана
     const aY = a.r + a.q / 2;
     const bY = b.r + b.q / 2;
-
-    // Сначала сортируем по вертикали (Y), если равны — по горизонтали (q)
     return (aY - bY) || (a.q - b.q);
   });
 
-  // --- ПРОХОД 1: ПОДЛОЖКА (Земля) ---
   for (const t of sortedMap) {
     const p = axialToPixel(t.q, t.r, TILE_SIZE);
-    drawHexBase(ctx, p.x, p.y, TILE_SIZE, t);
+    const flowAngle = cachedFlowMap ? (cachedFlowMap.get(`${t.q},${t.r}`) || 0) : 0;
+
+    drawHexBase(ctx, p.x, p.y, TILE_SIZE, t, flowAngle);
+
+    if (isWater(t)) {
+        const shoreOffsets = [
+            {q:1, r:0}, {q:0, r:1}, {q:-1, r:1},
+            {q:-1, r:0}, {q:0, r:-1}, {q:1, r:-1}
+        ];
+
+        const selfGroup = getWaterGroup(t.type);
+
+        const shoreMask = shoreOffsets.map(off => {
+            const nType = tileTypeMap.get(`${t.q + off.q},${t.r + off.r}`);
+
+            // Если соседа нет (край) - берег
+            if (!nType) return true;
+
+            const nGroup = getWaterGroup(nType);
+
+            // Берег нужен, если:
+            // 1. Сосед - суша (land)
+            // 2. Сосед - вода другой группы (например, Озеро граничит с Рекой)
+            return nGroup === 'land' || nGroup !== selfGroup;
+        });
+
+        drawHexShores(ctx, p.x, p.y, TILE_SIZE, shoreMask, t.type);
+    }
   }
 
-  // --- ПРОХОД 2: ОБЪЕКТЫ (Деревья) ---
   for (const t of sortedMap) {
     const p = axialToPixel(t.q, t.r, TILE_SIZE);
     drawHexOverlay(ctx, p.x, p.y, TILE_SIZE, t);
   }
 
-  // --- ПОДСВЕТКА ХОДОВ ---
-  if (reachableMap) {
-    // Убедитесь, что drawReachable тоже использует axialToPixel и axialHexPath из hexUtils
-    if (typeof drawReachable === 'function') {
-        drawReachable(ctx, reachableMap, TILE_SIZE);
-    }
-  }
-
-  // --- ИГРОК ---
-  if (playerPos) {
-    if (typeof drawPlayer === 'function') {
-        drawPlayer(ctx, playerPos, TILE_SIZE);
-    }
-  }
+  if (reachableMap && drawReachable) drawReachable(ctx, reachableMap, TILE_SIZE);
+  if (playerPos && drawPlayer) drawPlayer(ctx, playerPos, TILE_SIZE);
 
   ctx.restore();
 }

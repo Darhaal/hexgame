@@ -1,18 +1,17 @@
-// src/components/map/HexCanvas.jsx
 "use client";
 
-import { useRef, useEffect } from "react";
-// Добавляем clampCamera и resizeCanvas в импорт
+import { useRef, useEffect, useCallback } from "react";
 import { createCamera, resetCamera, initCameraEvents, resizeCanvas, clampCamera } from "../../engine/camera";
 import { drawScene } from "../../engine/draw/drawScene";
 import mapData from "../../data/mapData";
+import { axialToPixel } from "../../engine/hex/hexUtils"; // Импортируем утилиту
 
-export default function HexCanvas({ playerPosRef, reachableRef, onTileClicked }) {
+export default function HexCanvas({ playerPosRef, reachableRef, onTileClicked, tick }) {
   const canvasRef = useRef(null);
   const cameraRef = useRef(null);
 
-  // Функция для проверки размера окна без сброса камеры
-  function ensureCanvasSize(canvas, camera) {
+  // Функция для проверки размера окна
+  const ensureCanvasSize = (canvas, camera) => {
     const cssW = Math.floor(canvas.clientWidth || window.innerWidth);
     const cssH = Math.floor(canvas.clientHeight || window.innerHeight);
     if (canvas.width !== cssW || canvas.height !== cssH) {
@@ -21,55 +20,57 @@ export default function HexCanvas({ playerPosRef, reachableRef, onTileClicked })
       return true;
     }
     return false;
-  }
+  };
 
+  // Функция отрисовки (стабильная ссылка)
+  const performDraw = useCallback(() => {
+    const canvas = canvasRef.current;
+    const camera = cameraRef.current;
+    if (!canvas || !camera) return;
+
+    ensureCanvasSize(canvas, camera);
+    drawScene({
+      canvas,
+      camera,
+      mapData,
+      playerPos: playerPosRef.current,
+      reachableMap: reachableRef.current,
+    });
+  }, [playerPosRef, reachableRef]); // Зависимости стабильны (refs)
+
+  // 1. Инициализация камеры и событий (Запускается один раз)
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
-    // Создаем камеру ТОЛЬКО один раз
+    // Создаем камеру
     if (!cameraRef.current) {
-      function computeBounds() {
-        let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
-        const { axialToPixel } = require("../../engine/hex/hexUtils");
-        const TILE_SIZE = 100;
-        for (const t of mapData) {
-          const p = axialToPixel(t.q, t.r, TILE_SIZE);
-          minX = Math.min(minX, p.x - TILE_SIZE);
-          maxX = Math.max(maxX, p.x + TILE_SIZE);
-          minY = Math.min(minY, p.y - TILE_SIZE);
-          maxY = Math.max(maxY, p.y + TILE_SIZE);
-        }
-        return { minX, maxX, minY, maxY };
+      let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+      const TILE_SIZE = 100;
+      for (const t of mapData) {
+        const p = axialToPixel(t.q, t.r, TILE_SIZE);
+        minX = Math.min(minX, p.x - TILE_SIZE);
+        maxX = Math.max(maxX, p.x + TILE_SIZE);
+        minY = Math.min(minY, p.y - TILE_SIZE);
+        maxY = Math.max(maxY, p.y + TILE_SIZE);
       }
-
-      const bounds = computeBounds();
+      const bounds = { minX, maxX, minY, maxY };
       cameraRef.current = createCamera(bounds, 100);
-      resetCamera(cameraRef.current, canvas); // Центрируем только при старте
+      resetCamera(cameraRef.current, canvas);
     }
 
-    const draw = () => {
-      ensureCanvasSize(canvas, cameraRef.current);
-      drawScene({
-        canvas,
-        camera: cameraRef.current,
-        mapData,
-        playerPos: playerPosRef.current,
-        reachableMap: reachableRef.current,
-      });
-    };
+    // Первый кадр
+    performDraw();
 
-    draw();
+    // Подключаем события камеры (драг, зум)
+    // Передаем performDraw, чтобы камера могла перерисовывать при движении
+    const cleanupCameraEvents = initCameraEvents(canvas, cameraRef.current, performDraw);
 
-    const cleanupEvents = initCameraEvents(canvas, cameraRef.current, draw);
-
-    function onClick(e) {
+    // Обработчик клика
+    const onClick = (e) => {
       const camera = cameraRef.current;
-
-      // --- ИСПРАВЛЕНИЕ БАГА №1 ---
-      // Если мы тащили карту (hasMoved === true), то это не клик по клетке.
       if (camera.hasMoved) {
-        camera.hasMoved = false; // Сбрасываем флаг и выходим
+        camera.hasMoved = false;
         return;
       }
 
@@ -79,7 +80,6 @@ export default function HexCanvas({ playerPosRef, reachableRef, onTileClicked })
       const worldX = (mx - camera.offsetX) / camera.scale;
       const worldY = (my - camera.offsetY) / camera.scale;
 
-      const { axialToPixel } = require("../../engine/hex/hexUtils");
       let best = null;
       let bestDist = Infinity;
 
@@ -92,23 +92,22 @@ export default function HexCanvas({ playerPosRef, reachableRef, onTileClicked })
         }
       }
       onTileClicked(best);
-    }
+    };
 
     canvas.addEventListener("click", onClick);
-
-    // Resize теперь просто перерисовывает, логика внутри ensureCanvasSize
-    const onWindowResize = () => {
-       ensureCanvasSize(canvas, cameraRef.current);
-       draw();
-    };
-    window.addEventListener("resize", onWindowResize);
+    window.addEventListener("resize", performDraw);
 
     return () => {
       canvas.removeEventListener("click", onClick);
-      window.removeEventListener("resize", onWindowResize);
-      if (cleanupEvents) cleanupEvents();
+      window.removeEventListener("resize", performDraw);
+      if (cleanupCameraEvents) cleanupCameraEvents();
     };
-  }, [playerPosRef, reachableRef, onTileClicked]);
+  }, [onTileClicked, performDraw]);
+
+  // 2. Игровой цикл (Запускается каждый кадр при изменении tick)
+  useEffect(() => {
+    performDraw();
+  }, [tick, performDraw]);
 
   return (
     <canvas

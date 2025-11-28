@@ -1,36 +1,35 @@
-// src/components/map/HexMap.jsx
 "use client";
 
-/**
- * High-level map component.
- * - Holds player state refs
- * - Controls UI overlays (TilePanel, DevConsole)
- * - Delegates canvas rendering to HexCanvas
- */
-
-import { useRef, useState } from "react";
+import { useRef, useState, useCallback } from "react";
 import HexCanvas from "./HexCanvas";
 import TilePanel from "../ui/TilePanel";
 import DevConsole from "../ui/DevConsole";
+
+// Подключаем хук
+import { useGameLoop } from "../../hooks/useGameLoop";
 
 import { loadPlayerState, savePlayerState, START_STEPS } from "../../engine/player/playerState";
 import { computeReachable, applyMove, BLOCKED, VEHICLES, setVehicle } from "../../engine/player/playerEngine";
 
 export default function HexMap() {
-  // load player pos/vehicle from localStorage
   const { pos: initialPos, steps: initialSteps } = loadPlayerState();
 
-  // refs used by canvas & engine (mutable, avoids rerenders)
   const playerPosRef = useRef(initialPos);
   const playerStepsRef = useRef(initialSteps);
   const reachableRef = useRef(computeReachable(initialPos, initialSteps));
 
-  // UI state
   const [activeTile, setActiveTile] = useState(null);
   const [showPanel, setShowPanel] = useState(false);
 
-  // Called by HexCanvas when a tile is clicked (tile object passed)
-  function handleTileClick(tile) {
+  // --- АНИМАЦИЯ ---
+  const [tick, setTick] = useState(0);
+
+  // Вызов игрового цикла
+  useGameLoop((time) => {
+    setTick(prev => prev + 1);
+  });
+
+  const handleTileClick = useCallback((tile) => {
     if (!tile) return;
     if (BLOCKED.has(tile.type.id)) return;
 
@@ -46,15 +45,8 @@ export default function HexMap() {
     reachableRef.current = computeReachable(move.newPos, move.newSteps);
 
     setActiveTile(tile);
-    setShowPanel(tile.type === "base");
-  }
-
-  function handleSleepFromPanel() {
-    playerStepsRef.current += 10;
-    savePlayerState(playerPosRef.current, playerStepsRef.current);
-    reachableRef.current = computeReachable(playerPosRef.current, playerStepsRef.current);
-    setShowPanel(false);
-  }
+    setShowPanel(tile.type === "base" || tile.type === "village");
+  }, []);
 
   function handleSetVehicle(id) {
     if (!setVehicle(id)) return false;
@@ -64,26 +56,25 @@ export default function HexMap() {
     return true;
   }
 
+  const handleSleepFromPanel = () => {
+     playerStepsRef.current += 10;
+     setShowPanel(false);
+  };
+
   return (
     <div style={{ position: "relative", minHeight: "100vh" }}>
       <DevConsole
         onAddSteps={(n) => {
           playerStepsRef.current += n;
-          savePlayerState(playerPosRef.current, playerStepsRef.current);
           reachableRef.current = computeReachable(playerPosRef.current, playerStepsRef.current);
         }}
         onReset={() => {
           playerPosRef.current = { q: 0, r: 0 };
           playerStepsRef.current = START_STEPS;
-          savePlayerState(playerPosRef.current, playerStepsRef.current);
           reachableRef.current = computeReachable(playerPosRef.current, playerStepsRef.current);
         }}
-        onSetVehicle={(id) => handleSetVehicle(id)}
-        onToggleDebug={() => {
-          // simple debug hook
-          // you can extend to toggle extra visuals
-          console.log("Debug toggled");
-        }}
+        onSetVehicle={handleSetVehicle}
+        onToggleDebug={() => console.log("Debug")}
       />
 
       <TilePanel tile={showPanel ? activeTile : null} onClose={() => setShowPanel(false)} onSleep={handleSleepFromPanel} />
@@ -92,6 +83,7 @@ export default function HexMap() {
         playerPosRef={playerPosRef}
         reachableRef={reachableRef}
         onTileClicked={handleTileClick}
+        tick={tick}
       />
     </div>
   );

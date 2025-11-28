@@ -3,216 +3,201 @@ import { axialHexPath } from "../hex/hexUtils.js";
 const placeholder = null;
 
 // --- ЗАГРУЗКА ТЕКСТУР ---
-// Теперь для каждого типа воды свой путь.
-// Вы можете заменить "/textures/water.jpg" на разные файлы для разных рек.
 const TEXTURE_PATH = "/textures/paper.jpg";
 const FOREST_TEXTURE_PATH = "/textures/forest.jpg";
 const FIELD_TEXTURE_PATH = "/textures/field.jpg";
+const SHORE_TEXTURE_PATH = "/textures/shore.jpg";
 
-const LAKE_TEXTURE_PATH = "/textures/water.jpg";        // Озера
-const RIVER_TEXTURE_PATH = "/textures/water.jpg";       // Обычные реки
-const GREAT_RIVER_TEXTURE_PATH = "/textures/water.jpg"; // Великие реки (Днепр)
-const LOUGH_TEXTURE_PATH = "/textures/water.jpg";       // Заводи/Острова
+const LAKE_TEXTURE_PATH = "/textures/water.jpg";
+const RIVER_TEXTURE_PATH = "/textures/water.jpg";
+const GREAT_RIVER_TEXTURE_PATH = "/textures/water.jpg";
+const LOUGH_TEXTURE_PATH = "/textures/water.jpg";
 
-// Изображения
 let textureImg = null;
 let forestTextureImg = null;
 let fieldTextureImg = null;
-
+let shoreImg = null;
 let lakeImg = null;
 let riverImg = null;
 let greatRiverImg = null;
 let loughImg = null;
 
-// Флаги загрузки
 let textureLoaded = false;
 let forestTextureLoaded = false;
 let fieldTextureLoaded = false;
-
+let shoreLoaded = false;
 let lakeLoaded = false;
 let riverLoaded = false;
 let greatRiverLoaded = false;
 let loughLoaded = false;
 
-// Паттерны (кешируем их, чтобы не пересоздавать каждый кадр)
 let patterns = {
-  paper: null,
-  forest: null,
-  field: null,
-  lake: null,
-  river: null,
-  great_river: null,
-  lough_river: null
+  paper: null, forest: null, field: null, shore: null,
+  lake: null, river: null, great_river: null, lough_river: null
 };
 
 if (typeof window !== "undefined") {
-  // 1. Бумага
-  const img = new Image();
-  img.crossOrigin = "anonymous";
-  img.src = TEXTURE_PATH;
-  img.onload = () => { textureImg = img; textureLoaded = true; };
-
-  // 2. Лес
-  const forestI = new Image();
-  forestI.crossOrigin = "anonymous";
-  forestI.src = FOREST_TEXTURE_PATH;
-  forestI.onload = () => { forestTextureImg = forestI; forestTextureLoaded = true; };
-
-  // 3. Поле
-  const fieldI = new Image();
-  fieldI.crossOrigin = "anonymous";
-  fieldI.src = FIELD_TEXTURE_PATH;
-  fieldI.onload = () => { fieldTextureImg = fieldI; fieldTextureLoaded = true; };
-
-  // 4. Озеро
-  const lakeI = new Image();
-  lakeI.crossOrigin = "anonymous";
-  lakeI.src = LAKE_TEXTURE_PATH;
-  lakeI.onload = () => { lakeImg = lakeI; lakeLoaded = true; };
-
-  // 5. Река
-  const riverI = new Image();
-  riverI.crossOrigin = "anonymous";
-  riverI.src = RIVER_TEXTURE_PATH;
-  riverI.onload = () => { riverImg = riverI; riverLoaded = true; };
-
-  // 6. Великая река
-  const greatI = new Image();
-  greatI.crossOrigin = "anonymous";
-  greatI.src = GREAT_RIVER_TEXTURE_PATH;
-  greatI.onload = () => { greatRiverImg = greatI; greatRiverLoaded = true; };
-
-  // 7. Заводи
-  const loughI = new Image();
-  loughI.crossOrigin = "anonymous";
-  loughI.src = LOUGH_TEXTURE_PATH;
-  loughI.onload = () => { loughImg = loughI; loughLoaded = true; };
+  const load = (src, cb) => {
+    const i = new Image(); i.crossOrigin = "anonymous"; i.src = src;
+    i.onload = () => cb(i);
+  };
+  load(TEXTURE_PATH, (i) => { textureImg = i; textureLoaded = true; });
+  load(FOREST_TEXTURE_PATH, (i) => { forestTextureImg = i; forestTextureLoaded = true; });
+  load(FIELD_TEXTURE_PATH, (i) => { fieldTextureImg = i; fieldTextureLoaded = true; });
+  load(SHORE_TEXTURE_PATH, (i) => { shoreImg = i; shoreLoaded = true; });
+  load(LAKE_TEXTURE_PATH, (i) => { lakeImg = i; lakeLoaded = true; });
+  load(RIVER_TEXTURE_PATH, (i) => { riverImg = i; riverLoaded = true; });
+  load(GREAT_RIVER_TEXTURE_PATH, (i) => { greatRiverImg = i; greatRiverLoaded = true; });
+  load(LOUGH_TEXTURE_PATH, (i) => { loughImg = i; loughLoaded = true; });
 }
 
-// Палитра
 const COLORS = {
-  village:     "#E8DCCA",
-  lake:        "#AEC6CF",
-  river:       "#9BC4D4", // Чуть отличим цвет реки от озера
-  great_river: "#8AAEC4", // Более глубокий синий
-  lough_river: "#A4BFCB",
-  island:      "#B8C9A5",
-  forest:      "#B8C9A5",
-  field:       "#B8C9A5",
-  default:     "#F0E6D2"
+  village: "#E8DCCA", lake: "#AEC6CF", river: "#9BC4D4",
+  great_river: "#8AAEC4", lough_river: "#A4BFCB", island: "#B8C9A5",
+  forest: "#B8C9A5", field: "#E3D8AA", default: "#F0E6D2"
 };
 
-function getTileImage(tile) {
-  if (!tile) return null;
-  return null;
-}
+function getTileImage(tile) { return null; }
 
-// --- ФУНДАМЕНТ (ЦВЕТ + ТЕКСТУРА) ---
-export function drawHexBase(ctx, x, y, size, tile) {
+export function drawHexBase(ctx, x, y, size, tile, flowRotation = 0) {
   if (!tile) return;
-
   ctx.save();
   ctx.beginPath();
   axialHexPath(ctx, x, y, size);
-
-  // 1. Базовый цвет
   ctx.fillStyle = COLORS[tile.type] || COLORS.default;
   ctx.fill();
-
-  // 2. Наложение текстуры (Multiply)
   ctx.globalCompositeOperation = "multiply";
 
   let activePattern = null;
   let alpha = 0.4;
+  let flowSpeedX = 0;
+  const time = typeof performance !== 'undefined' ? performance.now() : 0;
 
-  // --- ЛОГИКА ВЫБОРА ТЕКСТУРЫ ---
-
-  // Острова теперь тоже считаем лесом
   if ((tile.type === 'forest' || tile.type === 'island') && forestTextureLoaded) {
     if (!patterns.forest) patterns.forest = createPatternSafe(ctx, forestTextureImg);
-    activePattern = patterns.forest;
-    alpha = 0.6; // Густой лес
-
+    activePattern = patterns.forest; alpha = 0.6;
   } else if (tile.type === 'field' && fieldTextureLoaded) {
     if (!patterns.field) patterns.field = createPatternSafe(ctx, fieldTextureImg);
-    activePattern = patterns.field;
-    alpha = 0.5;
-
-  // --- ВОДА (ПОЛНОЕ РАЗДЕЛЕНИЕ) ---
-
+    activePattern = patterns.field; alpha = 0.5;
   } else if (tile.type === 'lake' && lakeLoaded) {
-    // Озеро
     if (!patterns.lake) patterns.lake = createPatternSafe(ctx, lakeImg);
-    activePattern = patterns.lake;
-    alpha = 0.5;
-
+    activePattern = patterns.lake; alpha = 0.5; flowSpeedX = 0.005;
   } else if (tile.type === 'river' && riverLoaded) {
-    // Река
     if (!patterns.river) patterns.river = createPatternSafe(ctx, riverImg);
-    activePattern = patterns.river;
-    alpha = 0.5;
-
+    activePattern = patterns.river; alpha = 0.5; flowSpeedX = 0.04;
   } else if (tile.type === 'great_river' && greatRiverLoaded) {
-    // Великая река (Днепр)
     if (!patterns.great_river) patterns.great_river = createPatternSafe(ctx, greatRiverImg);
-    activePattern = patterns.great_river;
-    alpha = 0.7; // Более насыщенная текстура для глубины
-
+    activePattern = patterns.great_river; alpha = 0.7; flowSpeedX = 0.04;
   } else if (tile.type === 'lough_river' && loughLoaded) {
-    // Заводи
     if (!patterns.lough_river) patterns.lough_river = createPatternSafe(ctx, loughImg);
-    activePattern = patterns.lough_river;
-    alpha = 0.55;
-
+    activePattern = patterns.lough_river; alpha = 0.55;
   } else if (textureLoaded) {
-    // Бумага (дефолт)
     if (!patterns.paper) patterns.paper = createPatternSafe(ctx, textureImg);
-    activePattern = patterns.paper;
-    alpha = 0.4;
+    activePattern = patterns.paper; alpha = 0.4;
   }
 
   if (activePattern) {
+    if (typeof DOMMatrix !== 'undefined' && activePattern.setTransform) {
+        let matrix = new DOMMatrix();
+        if (flowRotation !== 0) matrix = matrix.rotate(flowRotation);
+        if (flowSpeedX !== 0) {
+            const offset = (time * flowSpeedX) % 512;
+            matrix = matrix.translate(offset, 0);
+        }
+        activePattern.setTransform(matrix);
+    }
     ctx.globalAlpha = alpha;
     ctx.fillStyle = activePattern;
     ctx.fill();
   }
-
   ctx.restore();
 }
 
 function createPatternSafe(ctx, img) {
-  try {
-    return ctx.createPattern(img, "repeat");
-  } catch (e) {
-    return null;
-  }
+  try { return ctx.createPattern(img, "repeat"); } catch (e) { return null; }
 }
 
-// --- СЕТКА ---
-export function drawHexNet(ctx, x, y, size) {
+// --- БЕРЕГА (ОБНОВЛЕНО ПОД 0.2 и 0.5) ---
+export function drawHexShores(ctx, x, y, size, shoreMask, tileType = 'river') {
+  if (!shoreMask || !shoreMask.some(b => b)) return;
+  if (!shoreLoaded) return;
+
+  if (!patterns.shore && shoreImg) {
+    patterns.shore = createPatternSafe(ctx, shoreImg);
+  }
+  if (!patterns.shore) return;
+
   ctx.save();
+
+  // 1. Ограничиваем рисование внутренней частью гекса
   ctx.beginPath();
   axialHexPath(ctx, x, y, size);
-  ctx.strokeStyle = "rgba(139, 69, 19, 0.25)";
-  ctx.lineWidth = 1;
-  ctx.stroke();
+  ctx.clip();
+
+  // 2. Настраиваем ширину берега в зависимости от типа
+  // Для Озер: 0.2 от размера (узкий берег)
+  // Для Рек (и прочих): 0.5 от размера (широкий берег)
+  let widthFactor = 0.5;
+  if (tileType === 'lake' || tileType === 'lough_river') {
+    widthFactor = 0.3;
+  }
+
+  // Т.к. clip обрезает половину линии, мы задаем strokeWidth = factor * size
+  // Видимая часть будет равна factor * size / 2.
+  // Если вы хотите видимую часть именно 0.5, то здесь нужно ставить 1.0.
+  // Но полагаю, вы имели в виду параметр толщины линии в коде (как было 0.2/0.3).
+  // Поэтому ставим strokeWidth равным запрошенному коэффициенту.
+  const strokeW = size * widthFactor;
+
+  ctx.strokeStyle = patterns.shore;
+  ctx.lineWidth = strokeW;
+
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+
+  ctx.globalAlpha = 1.0;
+  ctx.globalCompositeOperation = "source-over";
+
+  // 3. Рисуем грани
+  for (let i = 0; i < 6; i++) {
+    if (shoreMask[i]) {
+      const a1 = (i * 60) * Math.PI / 180;
+      const a2 = ((i + 1) * 60) * Math.PI / 180;
+      const x1 = x + size * Math.cos(a1);
+      const y1 = y + size * Math.sin(a1);
+      const x2 = x + size * Math.cos(a2);
+      const y2 = y + size * Math.sin(a2);
+
+      ctx.beginPath();
+      ctx.moveTo(x1, y1);
+      ctx.lineTo(x2, y2);
+      ctx.stroke();
+    }
+  }
+
   ctx.restore();
 }
 
-// --- ОБЪЕКТЫ ---
 export function drawHexOverlay(ctx, x, y, size, tile) {
   if (!tile) return;
+  ctx.save();
+  ctx.beginPath();
+  axialHexPath(ctx, x, y, size);
+  ctx.strokeStyle = "rgba(142, 113, 57, 0.4)";
+  ctx.lineWidth = 3;
+  ctx.stroke();
+  ctx.restore();
 
   const img = getTileImage(tile);
   if (img && img.complete && img.naturalWidth !== 0) {
     const hexScreenHeight = size * Math.sqrt(3);
-    const sourceRefHeight = 512;
-    const scale = hexScreenHeight / sourceRefHeight;
-    const drawWidth = img.naturalWidth * scale;
-    const drawHeight = img.naturalHeight * scale;
-
+    const scale = hexScreenHeight / 512;
+    const w = img.naturalWidth * scale;
+    const h = img.naturalHeight * scale;
     ctx.save();
-    ctx.drawImage(img, x - drawWidth / 2, y - drawHeight / 2, drawWidth, drawHeight);
+    ctx.drawImage(img, x - w / 2, y - h / 2, w, h);
     ctx.restore();
   }
 }
+
+export function drawHexNet(ctx, x, y, size) {}

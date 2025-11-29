@@ -11,7 +11,7 @@ const SHORE_TEXTURE_PATH = "/textures/shore.jpg";
 const LAKE_TEXTURE_PATH = "/textures/water.jpg";
 const RIVER_TEXTURE_PATH = "/textures/water.jpg";
 const GREAT_RIVER_TEXTURE_PATH = "/textures/water.jpg";
-const LOUGH_TEXTURE_PATH = "/textures/water.jpg";
+const LOUGH_TEXTURE_PATH = "/textures/lough_river.jpg"; // Больше не используется для отрисовки
 
 let textureImg = null;
 let forestTextureImg = null;
@@ -53,8 +53,8 @@ if (typeof window !== "undefined") {
 
 const COLORS = {
   village: "#E8DCCA", lake: "#AEC6CF", river: "#9BC4D4",
-  great_river: "#8AAEC4", lough_river: "#A4BFCB", island: "#B8C9A5",
-  forest: "#B8C9A5", field: "#B8C9A5", default: "#F0E6D2"
+  great_river: "#9BC4D4", lough_river: "#9BC4D4", island: "#cddfb9",
+  forest: "#cddfb9", field: "#cddfb9", default: "#F0E6D2"
 };
 
 function getTileImage(tile) { return null; }
@@ -71,6 +71,8 @@ export function drawHexBase(ctx, x, y, size, tile, flowRotation = 0) {
   let activePattern = null;
   let alpha = 0.4;
   let flowSpeedX = 0;
+  let isOscillating = false;
+
   const time = typeof performance !== 'undefined' ? performance.now() : 0;
 
   if ((tile.type === 'forest' || tile.type === 'island') && forestTextureLoaded) {
@@ -79,18 +81,29 @@ export function drawHexBase(ctx, x, y, size, tile, flowRotation = 0) {
   } else if (tile.type === 'field' && fieldTextureLoaded) {
     if (!patterns.field) patterns.field = createPatternSafe(ctx, fieldTextureImg);
     activePattern = patterns.field; alpha = 0.5;
+
+  // --- ОЗЕРА (КОЛЕБАНИЕ) ---
   } else if (tile.type === 'lake' && lakeLoaded) {
     if (!patterns.lake) patterns.lake = createPatternSafe(ctx, lakeImg);
-    activePattern = patterns.lake; alpha = 0.5; flowSpeedX = 0.005;
+    activePattern = patterns.lake; alpha = 0.5;
+    isOscillating = true;
+
+  // --- ЗАВОДИ (ТЕПЕРЬ КАК ОЗЕРО) ---
+  } else if (tile.type === 'lough_river' && lakeLoaded) {
+    // Используем текстуру Озера (вода)
+    if (!patterns.lake) patterns.lake = createPatternSafe(ctx, lakeImg);
+    activePattern = patterns.lake;
+    alpha = 0.5;
+    isOscillating = true; // Колеблется как вода
+
+  // --- РЕКИ (ТЕЧЕНИЕ) ---
   } else if (tile.type === 'river' && riverLoaded) {
     if (!patterns.river) patterns.river = createPatternSafe(ctx, riverImg);
     activePattern = patterns.river; alpha = 0.5; flowSpeedX = 0.04;
   } else if (tile.type === 'great_river' && greatRiverLoaded) {
     if (!patterns.great_river) patterns.great_river = createPatternSafe(ctx, greatRiverImg);
     activePattern = patterns.great_river; alpha = 0.7; flowSpeedX = 0.04;
-  } else if (tile.type === 'lough_river' && loughLoaded) {
-    if (!patterns.lough_river) patterns.lough_river = createPatternSafe(ctx, loughImg);
-    activePattern = patterns.lough_river; alpha = 0.55;
+
   } else if (textureLoaded) {
     if (!patterns.paper) patterns.paper = createPatternSafe(ctx, textureImg);
     activePattern = patterns.paper; alpha = 0.4;
@@ -99,11 +112,22 @@ export function drawHexBase(ctx, x, y, size, tile, flowRotation = 0) {
   if (activePattern) {
     if (typeof DOMMatrix !== 'undefined' && activePattern.setTransform) {
         let matrix = new DOMMatrix();
-        if (flowRotation !== 0) matrix = matrix.rotate(flowRotation);
-        if (flowSpeedX !== 0) {
+
+        // 1. Поворот (для рек)
+        if (tile.type === 'river' || tile.type === 'great_river') {
+             if (flowRotation !== 0) matrix = matrix.rotate(flowRotation);
+        }
+
+        // 2. Анимация
+        if (isOscillating) {
+            const oscX = Math.sin(time * 0.001) * 15;
+            const oscY = Math.cos(time * 0.001) * 15;
+            matrix = matrix.translate(oscX, oscY);
+        } else if (flowSpeedX !== 0) {
             const offset = (time * flowSpeedX) % 512;
             matrix = matrix.translate(offset, 0);
         }
+
         activePattern.setTransform(matrix);
     }
     ctx.globalAlpha = alpha;
@@ -117,62 +141,147 @@ function createPatternSafe(ctx, img) {
   try { return ctx.createPattern(img, "repeat"); } catch (e) { return null; }
 }
 
-// --- БЕРЕГА (ОБНОВЛЕНО ПОД 0.2 и 0.5) ---
+// --- БЕРЕГА ---
 export function drawHexShores(ctx, x, y, size, shoreMask, tileType = 'river') {
   if (!shoreMask || !shoreMask.some(b => b)) return;
-  if (!shoreLoaded) return;
 
-  if (!patterns.shore && shoreImg) {
-    patterns.shore = createPatternSafe(ctx, shoreImg);
+  // Подготовка ресурсов
+  let shorePattern = null;
+  let useForestStyle = false;
+
+  if (tileType === 'lough_river') {
+      if (!forestTextureLoaded) return;
+      if (!patterns.forest && forestTextureImg) {
+          patterns.forest = createPatternSafe(ctx, forestTextureImg);
+      }
+      shorePattern = patterns.forest;
+      useForestStyle = true;
+  } else {
+      if (!shoreLoaded) return;
+      if (!patterns.shore && shoreImg) {
+          patterns.shore = createPatternSafe(ctx, shoreImg);
+      }
+      shorePattern = patterns.shore;
   }
-  if (!patterns.shore) return;
+
+  if (!shorePattern) return;
 
   ctx.save();
 
-  // 1. Ограничиваем рисование внутренней частью гекса
+  // 1. Клиппинг
   ctx.beginPath();
   axialHexPath(ctx, x, y, size);
   ctx.clip();
 
-  // 2. Настраиваем ширину берега в зависимости от типа
-  // Для Озер: 0.2 от размера (узкий берег)
-  // Для Рек (и прочих): 0.5 от размера (широкий берег)
+  // Настройки ширины
   let widthFactor = 0.5;
   if (tileType === 'lake' || tileType === 'lough_river') {
     widthFactor = 0.3;
   }
-
-  // Т.к. clip обрезает половину линии, мы задаем strokeWidth = factor * size
-  // Видимая часть будет равна factor * size / 2.
-  // Если вы хотите видимую часть именно 0.5, то здесь нужно ставить 1.0.
-  // Но полагаю, вы имели в виду параметр толщины линии в коде (как было 0.2/0.3).
-  // Поэтому ставим strokeWidth равным запрошенному коэффициенту.
   const strokeW = size * widthFactor;
 
-  ctx.strokeStyle = patterns.shore;
-  ctx.lineWidth = strokeW;
-
-  ctx.lineCap = 'round';
-  ctx.lineJoin = 'round';
-
-  ctx.globalAlpha = 1.0;
-  ctx.globalCompositeOperation = "source-over";
-
-  // 3. Рисуем грани
-  for (let i = 0; i < 6; i++) {
-    if (shoreMask[i]) {
-      const a1 = (i * 60) * Math.PI / 180;
-      const a2 = ((i + 1) * 60) * Math.PI / 180;
-      const x1 = x + size * Math.cos(a1);
-      const y1 = y + size * Math.sin(a1);
-      const x2 = x + size * Math.cos(a2);
-      const y2 = y + size * Math.sin(a2);
-
+  // Функция рисования пути берега
+  const drawShorePath = () => {
       ctx.beginPath();
-      ctx.moveTo(x1, y1);
-      ctx.lineTo(x2, y2);
+      for (let i = 0; i < 6; i++) {
+        if (shoreMask[i]) {
+          const a1 = (i * 60) * Math.PI / 180;
+          const a2 = ((i + 1) * 60) * Math.PI / 180;
+          const x1 = x + size * Math.cos(a1);
+          const y1 = y + size * Math.sin(a1);
+          const x2 = x + size * Math.cos(a2);
+          const y2 = y + size * Math.sin(a2);
+          ctx.moveTo(x1, y1);
+          ctx.lineTo(x2, y2);
+        }
+      }
+  };
+
+  // --- ОТРИСОВКА БЕРЕГОВ ---
+
+  if (useForestStyle) {
+      // СЛОЙ 1: Цвет леса (база)
+      drawShorePath();
+      ctx.strokeStyle = COLORS.forest;
+      ctx.lineWidth = strokeW;
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      ctx.globalAlpha = 1.0;
+      ctx.globalCompositeOperation = "source-over";
       ctx.stroke();
-    }
+
+      // СЛОЙ 2: Текстура леса (наложение)
+      drawShorePath();
+      ctx.strokeStyle = shorePattern;
+      ctx.lineWidth = strokeW;
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      ctx.globalAlpha = 0.6; // Прозрачность текстуры
+      ctx.globalCompositeOperation = "multiply"; // Смешивание с цветом
+      ctx.stroke();
+  } else {
+      // Обычный берег (только текстура песка)
+      drawShorePath();
+      ctx.strokeStyle = shorePattern;
+      ctx.lineWidth = strokeW;
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      ctx.globalAlpha = 1.0;
+      ctx.globalCompositeOperation = "source-over";
+      ctx.stroke();
+  }
+
+  // --- РАНДОМНЫЕ ОСТРОВА (Только для lough_river) ---
+  if (tileType === 'lough_river') {
+      const seed = Math.floor(x) * 31 + Math.floor(y) * 17;
+      const rand = (offset) => Math.abs(Math.sin(seed + offset));
+      const numIslands = 1 + Math.floor(rand(0) * 1.8);
+
+      for (let k = 0; k < numIslands; k++) {
+          // Генерация формы
+          const offsetX = (rand(k + 1) - 0.5) * size * 0.4;
+          const offsetY = (rand(k + 2) - 0.5) * size * 0.4;
+          const baseR = size * (0.15 + rand(k + 3) * 0.15);
+
+          const vertices = [];
+          const numVerts = 7;
+          for (let j = 0; j < numVerts; j++) {
+              const angle = (j / numVerts) * Math.PI * 2;
+              const r = baseR * (0.7 + rand(k * 10 + j) * 0.6);
+              vertices.push({
+                  x: x + offsetX + Math.cos(angle) * r,
+                  y: y + offsetY + Math.sin(angle) * r
+              });
+          }
+
+          // Рисуем форму
+          ctx.beginPath();
+          const startX = (vertices[numVerts - 1].x + vertices[0].x) / 2;
+          const startY = (vertices[numVerts - 1].y + vertices[0].y) / 2;
+          ctx.moveTo(startX, startY);
+          for (let j = 0; j < numVerts; j++) {
+              const p1 = vertices[j];
+              const p2 = vertices[(j + 1) % numVerts];
+              const midX = (p1.x + p2.x) / 2;
+              const midY = (p1.y + p2.y) / 2;
+              ctx.quadraticCurveTo(p1.x, p1.y, midX, midY);
+          }
+          ctx.closePath();
+
+          // ЗАЛИВКА ОСТРОВОВ (ТАК ЖЕ КАК БЕРЕГ: ЦВЕТ + ТЕКСТУРА)
+
+          // Слой 1: Цвет
+          ctx.globalCompositeOperation = "source-over";
+          ctx.fillStyle = COLORS.forest;
+          ctx.globalAlpha = 1.0;
+          ctx.fill();
+
+          // Слой 2: Текстура
+          ctx.globalCompositeOperation = "multiply";
+          ctx.fillStyle = shorePattern;
+          ctx.globalAlpha = 0.6;
+          ctx.fill();
+      }
   }
 
   ctx.restore();

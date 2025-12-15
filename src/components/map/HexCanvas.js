@@ -4,13 +4,12 @@ import { useRef, useEffect, useCallback } from "react";
 import { createCamera, resetCamera, initCameraEvents, resizeCanvas, clampCamera } from "../../engine/camera";
 import { drawScene } from "../../engine/draw/drawScene";
 import mapData from "../../data/mapData";
-import { axialToPixel } from "../../engine/hex/hexUtils"; // Импортируем утилиту
+import { axialToPixel } from "../../engine/hex/hexUtils";
 
-export default function HexCanvas({ playerPosRef, reachableRef, onTileClicked, tick }) {
+export default function HexCanvas({ playerPosRef, reachableRef, path, onTileClicked, tick }) {
   const canvasRef = useRef(null);
   const cameraRef = useRef(null);
 
-  // Функция для проверки размера окна
   const ensureCanvasSize = (canvas, camera) => {
     const cssW = Math.floor(canvas.clientWidth || window.innerWidth);
     const cssH = Math.floor(canvas.clientHeight || window.innerHeight);
@@ -22,7 +21,6 @@ export default function HexCanvas({ playerPosRef, reachableRef, onTileClicked, t
     return false;
   };
 
-  // Функция отрисовки (стабильная ссылка)
   const performDraw = useCallback(() => {
     const canvas = canvasRef.current;
     const camera = cameraRef.current;
@@ -35,15 +33,15 @@ export default function HexCanvas({ playerPosRef, reachableRef, onTileClicked, t
       mapData,
       playerPos: playerPosRef.current,
       reachableMap: reachableRef.current,
+      path: path,
+      tick: tick
     });
-  }, [playerPosRef, reachableRef]); // Зависимости стабильны (refs)
+  }, [playerPosRef, reachableRef, path, tick]);
 
-  // 1. Инициализация камеры и событий (Запускается один раз)
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
-    // Создаем камеру
     if (!cameraRef.current) {
       let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
       const TILE_SIZE = 100;
@@ -59,14 +57,10 @@ export default function HexCanvas({ playerPosRef, reachableRef, onTileClicked, t
       resetCamera(cameraRef.current, canvas);
     }
 
-    // Первый кадр
     performDraw();
 
-    // Подключаем события камеры (драг, зум)
-    // Передаем performDraw, чтобы камера могла перерисовывать при движении
     const cleanupCameraEvents = initCameraEvents(canvas, cameraRef.current, performDraw);
 
-    // Обработчик клика
     const onClick = (e) => {
       const camera = cameraRef.current;
       if (camera.hasMoved) {
@@ -91,7 +85,8 @@ export default function HexCanvas({ playerPosRef, reachableRef, onTileClicked, t
           best = t;
         }
       }
-      onTileClicked(best);
+      // Передаем также состояние Shift
+      onTileClicked(best, e.shiftKey);
     };
 
     canvas.addEventListener("click", onClick);
@@ -104,10 +99,9 @@ export default function HexCanvas({ playerPosRef, reachableRef, onTileClicked, t
     };
   }, [onTileClicked, performDraw]);
 
-  // 2. Игровой цикл (Запускается каждый кадр при изменении tick)
   useEffect(() => {
     performDraw();
-  }, [tick, performDraw]);
+  }, [tick, path, performDraw]);
 
   return (
     <canvas

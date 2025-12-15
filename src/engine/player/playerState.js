@@ -1,34 +1,40 @@
-// src/engine/player/playerState.js
 /**
- * Simple localStorage-backed player state helpers.
- * - loadPlayerState()
- * - savePlayerState(pos, steps)
+ * Управление состоянием игрока: Позиция, Время и Детальная Очередь движения.
  */
 
-import { VEHICLES } from "./playerEngine";
-
-export const START_STEPS = 5;
+export const START_TIME = 8 * 60;
 
 export function loadPlayerState() {
   try {
     const pos = JSON.parse(localStorage.getItem("playerPos"));
-    const veh = localStorage.getItem("playerVehicle");
-    let vehicle = VEHICLES.none;
-    if (veh && VEHICLES[veh]) vehicle = VEHICLES[veh];
+    const savedTime = localStorage.getItem("playerTime");
+    const gameTime = savedTime ? parseFloat(savedTime) : START_TIME;
+    const vehicle = localStorage.getItem("playerVehicle") || "none";
+
+    // Загружаем очередь и состояние активного шага
+    const queueRaw = localStorage.getItem("playerQueue");
+    const queue = queueRaw ? JSON.parse(queueRaw) : [];
+
+    const activeStepRaw = localStorage.getItem("playerActiveStep");
+    const activeStep = activeStepRaw ? JSON.parse(activeStepRaw) : null;
 
     if (pos) {
-      return { pos, steps: START_STEPS + (vehicle.stepBonus ?? 0) };
+      return { pos, gameTime, vehicle, queue, activeStep };
     }
-  } catch (e) { /* ignore */ }
-  return { pos: { q: 0, r: 0 }, steps: START_STEPS };
+  } catch (e) {
+    console.warn("Error loading state", e);
+  }
+  return { pos: { q: 0, r: 0 }, gameTime: START_TIME, vehicle: "none", queue: [], activeStep: null };
 }
 
-export function savePlayerState(pos, steps) {
+export function savePlayerState(pos, gameTime, vehicle = "none", queue = [], activeStep = null) {
   try {
     localStorage.setItem("playerPos", JSON.stringify(pos));
-    localStorage.setItem("playerSteps", String(steps));
-    // store vehicle id if present
-    const curVeh = (typeof window !== "undefined" && localStorage.getItem("playerVehicle")) || "none";
-    localStorage.setItem("playerVehicle", curVeh);
-  } catch (e) { console.warn("Failed to save player state", e); }
+    localStorage.setItem("playerTime", String(gameTime));
+    localStorage.setItem("playerVehicle", vehicle);
+    localStorage.setItem("playerQueue", JSON.stringify(queue));
+    localStorage.setItem("playerActiveStep", JSON.stringify(activeStep));
+  } catch (e) {
+    console.warn("Failed to save player state", e);
+  }
 }

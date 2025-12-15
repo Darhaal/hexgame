@@ -1,88 +1,191 @@
 "use client";
 
-import { useRef, useState, useCallback } from "react";
+import { useRef, useState, useCallback, useEffect } from "react";
 import HexCanvas from "./HexCanvas";
 import TilePanel from "../ui/TilePanel";
 import DevConsole from "../ui/DevConsole";
+import PaperClock from "../ui/PaperClock";
 
-// Подключаем хук
 import { useGameLoop } from "../../hooks/useGameLoop";
+import { loadPlayerState, savePlayerState, START_TIME } from "../../engine/player/playerState";
+import { setVehicle, VEHICLES } from "../../engine/player/playerEngine";
+import mapData from "../../data/mapData";
+import { REAL_SEC_TO_GAME_MIN } from "../../engine/time/timeModels";
 
-import { loadPlayerState, savePlayerState, START_STEPS } from "../../engine/player/playerState";
-import { computeReachable, applyMove, BLOCKED, VEHICLES, setVehicle } from "../../engine/player/playerEngine";
+// Импорт вынесенной логики
+import { calculateGameDelta } from "../../engine/time/timeLogic";
+import {
+  updateMovementPosition,
+  handleMoveInput,
+  stopMovement,
+  calculateDisplayPath
+} from "../../engine/movement/movementLogic";
 
 export default function HexMap() {
-  const { pos: initialPos, steps: initialSteps } = loadPlayerState();
+  const playerPosRef = useRef({ q: 0, r: 0 });
+  const gameTimeRef = useRef(START_TIME);
+  const lastSaveTimeRef = useRef(0);
 
-  const playerPosRef = useRef(initialPos);
-  const playerStepsRef = useRef(initialSteps);
-  const reachableRef = useRef(computeReachable(initialPos, initialSteps));
+  const movementRef = useRef({ queue: [], activeStep: null });
 
+  const [isLoaded, setIsLoaded] = useState(false);
+  const [renderTime, setRenderTime] = useState(START_TIME);
+  const [currentVehicleId, setCurrentVehicleId] = useState("none");
+  const [isMoving, setIsMoving] = useState(false);
+
+  const [plannedPath, setPlannedPath] = useState(null);
+  const [targetTileCoords, setTargetTileCoords] = useState(null);
   const [activeTile, setActiveTile] = useState(null);
   const [showPanel, setShowPanel] = useState(false);
-
-  // --- АНИМАЦИЯ ---
   const [tick, setTick] = useState(0);
 
-  // Вызов игрового цикла
-  useGameLoop((time) => {
+  const saveCurrentState = useCallback(() => {
+    savePlayerState(
+      playerPosRef.current,
+      gameTimeRef.current,
+      currentVehicleId,
+      movementRef.current.queue,
+      movementRef.current.activeStep
+    );
+  }, [currentVehicleId]);
+
+  useEffect(() => {
+    const loaded = loadPlayerState();
+    if (loaded) {
+        playerPosRef.current = loaded.pos;
+        gameTimeRef.current = loaded.gameTime;
+        setRenderTime(loaded.gameTime);
+        setCurrentVehicleId(loaded.vehicle);
+
+        if ((loaded.queue && loaded.queue.length > 0) || loaded.activeStep) {
+            movementRef.current = {
+                queue: loaded.queue || [],
+                activeStep: loaded.activeStep || null
+            };
+            setIsMoving(true);
+            setPlannedPath(null);
+        }
+    }
+    setIsLoaded(true);
+
+    const handleUnload = () => saveCurrentState();
+    window.addEventListener('beforeunload', handleUnload);
+    return () => window.removeEventListener('beforeunload', handleUnload);
+  }, [saveCurrentState]);
+
+  useGameLoop((time, deltaTime) => {
+    if (!isLoaded) return;
+
+    // Время
+    const deltaMinutes = calculateGameDelta(deltaTime);
+    gameTimeRef.current += deltaMinutes;
+    setRenderTime(gameTimeRef.current);
+
+    // Движение
+    if (isMoving) {
+      updateMovementPosition({
+        playerPosRef,
+        gameTimeRef,
+        movementRef,
+        mapData,
+        vehicleId: currentVehicleId,
+        onStepComplete: saveCurrentState,
+        onPathComplete: () => {
+             setIsMoving(false);
+             setPlannedPath(null);
+             saveCurrentState();
+
+             const tile = mapData.find(t =>
+                t.q === Math.round(playerPosRef.current.q) &&
+                t.r === Math.round(playerPosRef.current.r)
+             );
+             if (tile && (tile.type === "base" || tile.type === "village")) {
+                 setActiveTile(tile);
+                 setShowPanel(true);
+             }
+        }
+      });
+    }
+
+    // Автосейв
+    const now = performance.now();
+    if (now - lastSaveTimeRef.current > 1000) {
+        saveCurrentState();
+        lastSaveTimeRef.current = now;
+    }
+
     setTick(prev => prev + 1);
   });
 
-  const handleTileClick = useCallback((tile) => {
-    if (!tile) return;
-    if (BLOCKED.has(tile.type.id)) return;
+  const onTileClick = useCallback((tile, isShiftKey) => {
+    handleMoveInput({
+        tile, isShiftKey,
+        state: { isMoving, plannedPath, targetTileCoords, playerPos: playerPosRef.current, currentVehicleId },
+        setters: { setIsMoving, setPlannedPath, setTargetTileCoords, setShowPanel, setActiveTile },
+        movementRef,
+        mapData,
+        saveState: saveCurrentState
+    });
+  }, [isMoving, plannedPath, targetTileCoords, currentVehicleId, saveCurrentState]);
 
-    const key = `${tile.q},${tile.r}`;
-    if (!reachableRef.current.has(key)) return;
+  const onContextMenu = useCallback((e) => {
+    e.preventDefault();
+    stopMovement(movementRef, setIsMoving, saveCurrentState);
+    setPlannedPath(null);
+    setTargetTileCoords(null);
+  }, [saveCurrentState]);
 
-    const move = applyMove(playerPosRef.current, tile, reachableRef.current, playerStepsRef.current);
-    if (!move) return;
+  const onSetVehicle = (id) => {
+    if (setVehicle(id)) {
+        setCurrentVehicleId(id);
+        stopMovement(movementRef, setIsMoving, saveCurrentState);
+        setPlannedPath(null);
+        setTargetTileCoords(null);
+    }
+  };
 
-    playerPosRef.current = move.newPos;
-    playerStepsRef.current = move.newSteps;
-    savePlayerState(move.newPos, move.newSteps);
-    reachableRef.current = computeReachable(move.newPos, move.newSteps);
+  const onAddTime = (minutes) => {
+    gameTimeRef.current = Math.max(0, gameTimeRef.current + minutes);
+    setRenderTime(gameTimeRef.current);
+    saveCurrentState();
+  };
 
-    setActiveTile(tile);
-    setShowPanel(tile.type === "base" || tile.type === "village");
-  }, []);
-
-  function handleSetVehicle(id) {
-    if (!setVehicle(id)) return false;
-    playerStepsRef.current = START_STEPS + (VEHICLES[id]?.stepBonus ?? 0);
-    savePlayerState(playerPosRef.current, playerStepsRef.current);
-    reachableRef.current = computeReachable(playerPosRef.current, playerStepsRef.current);
-    return true;
-  }
-
-  const handleSleepFromPanel = () => {
-     playerStepsRef.current += 10;
+  const onSleep = () => {
+     onAddTime(480);
      setShowPanel(false);
   };
 
+  if (!isLoaded) return <div style={{ background: "#111", minHeight: "100vh" }}></div>;
+
   return (
-    <div style={{ position: "relative", minHeight: "100vh" }}>
+    <div style={{ position: "relative", minHeight: "100vh", background: "#111" }} onContextMenu={onContextMenu}>
+      <PaperClock gameTimeMinutes={renderTime} />
+
       <DevConsole
-        onAddSteps={(n) => {
-          playerStepsRef.current += n;
-          reachableRef.current = computeReachable(playerPosRef.current, playerStepsRef.current);
-        }}
+        onAddTime={onAddTime}
         onReset={() => {
           playerPosRef.current = { q: 0, r: 0 };
-          playerStepsRef.current = START_STEPS;
-          reachableRef.current = computeReachable(playerPosRef.current, playerStepsRef.current);
+          gameTimeRef.current = START_TIME;
+          setRenderTime(START_TIME);
+          stopMovement(movementRef, setIsMoving, saveCurrentState);
+          savePlayerState({ q: 0, r: 0 }, START_TIME, "none");
+          window.location.reload();
         }}
-        onSetVehicle={handleSetVehicle}
-        onToggleDebug={() => console.log("Debug")}
+        onSetVehicle={onSetVehicle}
+        onToggleDebug={() => console.log("Time flow:", REAL_SEC_TO_GAME_MIN)}
       />
 
-      <TilePanel tile={showPanel ? activeTile : null} onClose={() => setShowPanel(false)} onSleep={handleSleepFromPanel} />
+      <TilePanel
+        tile={showPanel ? activeTile : null}
+        onClose={() => setShowPanel(false)}
+        onSleep={onSleep}
+      />
 
       <HexCanvas
         playerPosRef={playerPosRef}
-        reachableRef={reachableRef}
-        onTileClicked={handleTileClick}
+        reachableRef={{ current: new Map() }}
+        path={calculateDisplayPath(isMoving, movementRef, plannedPath, playerPosRef.current)}
+        onTileClicked={onTileClick}
         tick={tick}
       />
     </div>

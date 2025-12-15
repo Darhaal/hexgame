@@ -1,8 +1,10 @@
 import { drawBorder } from "./drawBorder";
 import { drawHexBase, drawHexOverlay, drawHexShores } from "./drawHex";
 import { drawPlayer } from "./drawPlayer";
-import { drawReachable } from "./drawReachable";
+import { drawPath } from "./drawPath"; // Импорт отрисовки пути
 import { axialToPixel } from "../hex/hexUtils";
+
+// drawReachable больше не импортируем и не используем
 
 // Кеш для карты течений
 let cachedFlowMap = null;
@@ -17,13 +19,12 @@ function isRiver(t) {
 }
 
 function isSink(t) {
-  // ТЕПЕРЬ СТОК - ТОЛЬКО ГЛАВНАЯ РЕКА
-  // Озера исключены, чтобы реки в них не текли
   return t && (t.type === 'great_river');
 }
 
 // Хелпер для определения группы воды (для берегов)
 function getWaterGroup(type) {
+    // Разделяем системы, чтобы между ними рисовался берег
     if (type === 'river' || type === 'great_river') return 'river_sys';
     if (type === 'lake' || type === 'lough_river') return 'lake_sys';
     return 'land';
@@ -113,7 +114,7 @@ function calculateFlowMap(mapData, tileSize) {
   return flowMap;
 }
 
-export async function drawScene({ canvas, camera, mapData, playerPos, reachableMap, tick }) {
+export async function drawScene({ canvas, camera, mapData, playerPos, reachableMap, path, tick }) {
   if (!canvas || !canvas.getContext) return;
   const ctx = canvas.getContext("2d");
   if (!canvas.width || !canvas.height) return;
@@ -161,14 +162,17 @@ export async function drawScene({ canvas, camera, mapData, playerPos, reachableM
         const shoreMask = shoreOffsets.map(off => {
             const nType = tileTypeMap.get(`${t.q + off.q},${t.r + off.r}`);
 
-            // Если соседа нет (край) - берег
-            if (!nType) return true;
+            // Если соседа нет (край карты)
+            if (!nType) {
+                // Для lough_river берег НУЖЕН (чтобы закрыть заводь лесом)
+                if (t.type === 'lough_river') return true;
+                // Для рек берег НЕ НУЖЕН (чтобы текли за край)
+                return false;
+            }
 
             const nGroup = getWaterGroup(nType);
 
-            // Берег нужен, если:
-            // 1. Сосед - суша (land)
-            // 2. Сосед - вода другой группы (например, Озеро граничит с Рекой)
+            // Рисуем берег, если сосед - суша (land) или вода другой системы (river vs lake)
             return nGroup === 'land' || nGroup !== selfGroup;
         });
 
@@ -181,7 +185,14 @@ export async function drawScene({ canvas, camera, mapData, playerPos, reachableM
     drawHexOverlay(ctx, p.x, p.y, TILE_SIZE, t);
   }
 
-  if (reachableMap && drawReachable) drawReachable(ctx, reachableMap, TILE_SIZE);
+  // --- ОТРИСОВКА ПУТИ ---
+  // drawReachable убрана
+
+  // Рисуем путь (крестики)
+  if (path && drawPath) {
+      drawPath(ctx, path, TILE_SIZE);
+  }
+
   if (playerPos && drawPlayer) drawPlayer(ctx, playerPos, TILE_SIZE);
 
   ctx.restore();

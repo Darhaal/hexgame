@@ -26,17 +26,24 @@ export function formatGameTime(totalMinutes) {
   return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
 }
 
+/**
+ * Возвращает стоимость перемещения в минутах для данного тайла и транспорта.
+ */
 export function getTileCost(tile, vehicleId = 'none') {
   if (!tile) return Infinity;
 
+  // 1. Обработка транспорта (Приоритет 1)
   if (vehicleId === 'boat' && ['river', 'great_river', 'lake', 'lough_river'].includes(tile.type)) {
-      return 10;
+      return 10; // С лодкой вода проходима со стоимостью 10
   }
 
+  // 2. Сложные/дорогие тайлы (Приоритет 2)
   if (tile.type === 'forest' || tile.type === 'lough_river') return TIME_COSTS.forest;
   if (tile.type === 'field') return TIME_COSTS.field;
 
-  if (['river', 'great_river', 'lake'].includes(tile.type)) return Infinity;
+  // 3. Проверка непроходимости (Приоритет 3: Вода без лодки)
+  if (['river', 'great_river', 'lake'].includes(tile.type)) return Infinity; // Все реки/озера без лодки непроходимы
 
+  // 4. По умолчанию
   return TIME_COSTS.default;
 }

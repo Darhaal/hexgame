@@ -1,7 +1,8 @@
 import { TILE_TYPES } from "../../data/tileTypes";
 
-// Генерируем список непроходимых типов для pathfinding
-// (Хотя pathfinding теперь использует getTileCost, этот список полезен для UI)
+/**
+ * Generated list of impassable tile types (useful for UI).
+ */
 export const BLOCKED = new Set(
   Object.values(TILE_TYPES)
     .filter((t) => !t.passable)
@@ -17,8 +18,9 @@ export const VEHICLES = {
 export let currentVehicle = VEHICLES.none;
 
 export function setVehicle(id) {
-  if (VEHICLES[id]) {
-    currentVehicle = VEHICLES[id];
+  const vehicle = VEHICLES[id];
+  if (vehicle) {
+    currentVehicle = vehicle;
     return true;
   }
   return false;

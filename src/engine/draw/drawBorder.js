@@ -1,28 +1,10 @@
-/**
- * Draw decorative "wood" tiles on the map's outer edges.
- * This module preloads an image for a repeating pattern.
- */
-
 import { axialToPixel } from "../hex/hexUtils";
+import { getAsset } from "../assets/AssetLoader";
 
-const IMG_PATH = "/textures/wood_dark.jpg";
 let woodPattern = null;
-let loadedImage = null;
-let imageLoaded = false;
 
-// Preload (browser-only)
-(function preload() {
-  if (typeof window === "undefined" || typeof Image === "undefined") return;
-  const img = new Image();
-  img.crossOrigin = "anonymous";
-  img.src = IMG_PATH;
-  img.onload = () => { imageLoaded = true; loadedImage = img; };
-  img.onerror = () => { imageLoaded = false; loadedImage = null; };
-})();
-
-// Обновленная функция отрисовки контура для Flat Top
 function hexPath(ctx, x, y, size) {
-  const start = 0; // Начинаем с 0 для плоского верха
+  const start = 0;
   ctx.beginPath();
   for (let i = 0; i < 6; i++) {
     const a = start + (i * Math.PI) / 3;
@@ -42,14 +24,15 @@ export function drawBorder(ctx, tiles, TILE_SIZE = 100) {
   if (!ctx || !tiles || tiles.length === 0) return;
 
   if (!woodPattern) {
-    if (imageLoaded && loadedImage) {
+    const img = getAsset('wood_dark');
+    if (img) {
       try {
-        woodPattern = ctx.createPattern(loadedImage, "repeat");
+        woodPattern = ctx.createPattern(img, "repeat");
       } catch (e) {
         woodPattern = null;
       }
     } else {
-      return;
+      return; // Ждем загрузки
     }
   }
 
@@ -63,12 +46,12 @@ export function drawBorder(ctx, tiles, TILE_SIZE = 100) {
 
       const p = axialToPixel(q, r, TILE_SIZE);
 
-      // wood fill
+      // Wood fill
       ctx.fillStyle = woodPattern;
       hexPath(ctx, p.x, p.y, sizeInner);
       ctx.fill();
 
-      // inner soft shadow
+      // Shadow
       ctx.save();
       ctx.globalCompositeOperation = "multiply";
       const shadow = ctx.createRadialGradient(p.x, p.y, TILE_SIZE * 0.2, p.x, p.y, TILE_SIZE);

@@ -1,34 +1,23 @@
-// src/engine/draw/drawPlayer.js
-/**
- * Draw the player icon centered on the tile.
- * Image is loaded once.
- */
-
 import { axialToPixel } from "../hex/hexUtils";
-
-let img = null;
-let imgLoaded = false;
-
-function loadImage() {
-  if (img) return;
-  if (typeof window === "undefined") return;
-  img = new Image();
-  img.src = "/player.png"; // place this in public/
-  img.onload = () => { imgLoaded = true; };
-  img.onerror = () => { console.error("Failed to load /player.png"); };
-}
+import { getAsset } from "../assets/AssetLoader";
 
 export function drawPlayer(ctx, pos, TILE_SIZE = 100) {
-  loadImage();
   const { x, y } = axialToPixel(pos.q, pos.r, TILE_SIZE);
   ctx.save();
   ctx.translate(x, y);
-  if (imgLoaded) {
-    ctx.drawImage(img, -TILE_SIZE * 0.5, -TILE_SIZE * 0.5, TILE_SIZE, TILE_SIZE);
+
+  const iconSize = TILE_SIZE * 0.5;
+  const img = getAsset('player');
+
+  if (img) {
+    ctx.drawImage(img, -iconSize, -iconSize, iconSize * 2, iconSize * 2);
   } else {
+    // Fallback
     ctx.fillStyle = "red";
     ctx.beginPath();
-    ctx.arc(0, 0, TILE_SIZE * 0.3, 0, Math.PI * 2);
+    ctx.arc(0, 0, iconSize * 0.6, 0, Math.PI * 2);
     ctx.fill();
   }
+
+  ctx.restore();
 }

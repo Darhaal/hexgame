@@ -52,6 +52,15 @@ export function pixelToAxial(x, y, size) {
   return hexRound(q, r);
 }
 
+/**
+ * Возвращает точные (дробные) аксиальные координаты без округления.
+ */
+export function pixelToAxialRaw(x, y, size) {
+  const q = ((2 / 3) * x) / size;
+  const r = ((-1 / 3) * x + (Math.sqrt(3) / 3) * y) / size;
+  return { q, r };
+}
+
 function hexRound(q, r) {
   let s = -q - r;
   let qi = Math.round(q);

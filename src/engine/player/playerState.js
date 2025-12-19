@@ -1,34 +1,72 @@
-// src/engine/player/playerState.js
+import { INITIAL_STATS } from "./playerStats";
+import { createInitialInventory } from "../inventory/inventoryLogic";
+import { INITIAL_SKILLS, INITIAL_CHARACTER } from "../../data/skillsData";
+
 /**
- * Simple localStorage-backed player state helpers.
- * - loadPlayerState()
- * - savePlayerState(pos, steps)
+ * Управление состоянием игрока: Позиция, Время, Очередь, Статистика, Инвентарь, Навыки и Персонаж.
  */
 
-import { VEHICLES } from "./playerEngine";
-
-export const START_STEPS = 5;
+export const START_TIME = 8 * 60;
 
 export function loadPlayerState() {
   try {
     const pos = JSON.parse(localStorage.getItem("playerPos"));
-    const veh = localStorage.getItem("playerVehicle");
-    let vehicle = VEHICLES.none;
-    if (veh && VEHICLES[veh]) vehicle = VEHICLES[veh];
+    const savedTime = localStorage.getItem("playerTime");
+    const gameTime = savedTime ? parseFloat(savedTime) : START_TIME;
+    const vehicle = localStorage.getItem("playerVehicle") || "none";
+
+    const queueRaw = localStorage.getItem("playerQueue");
+    const queue = queueRaw ? JSON.parse(queueRaw) : [];
+
+    const activeStepRaw = localStorage.getItem("playerActiveStep");
+    const activeStep = activeStepRaw ? JSON.parse(activeStepRaw) : null;
+
+    const statsRaw = localStorage.getItem("playerStats");
+    const stats = statsRaw ? JSON.parse(statsRaw) : INITIAL_STATS;
+
+    const invRaw = localStorage.getItem("playerInventory");
+    const inventory = invRaw ? JSON.parse(invRaw) : createInitialInventory();
+
+    // --- НОВЫЕ ПОЛЯ ---
+    const skillsRaw = localStorage.getItem("playerSkills");
+    const skills = skillsRaw ? JSON.parse(skillsRaw) : INITIAL_SKILLS;
+
+    const charRaw = localStorage.getItem("playerCharacter");
+    const character = charRaw ? JSON.parse(charRaw) : INITIAL_CHARACTER;
 
     if (pos) {
-      return { pos, steps: START_STEPS + (vehicle.stepBonus ?? 0) };
+      return { pos, gameTime, vehicle, queue, activeStep, stats, inventory, skills, character };
     }
-  } catch (e) { /* ignore */ }
-  return { pos: { q: 0, r: 0 }, steps: START_STEPS };
+  } catch (e) {
+    console.warn("Error loading state", e);
+  }
+
+  return {
+      pos: { q: 0, r: 0 },
+      gameTime: START_TIME,
+      vehicle: "none",
+      queue: [],
+      activeStep: null,
+      stats: INITIAL_STATS,
+      inventory: createInitialInventory(),
+      skills: INITIAL_SKILLS,
+      character: INITIAL_CHARACTER
+  };
 }
 
-export function savePlayerState(pos, steps) {
+export function savePlayerState(pos, gameTime, vehicle = "none", queue = [], activeStep = null, stats = INITIAL_STATS, inventory = [], skills = INITIAL_SKILLS, character = INITIAL_CHARACTER) {
   try {
     localStorage.setItem("playerPos", JSON.stringify(pos));
-    localStorage.setItem("playerSteps", String(steps));
-    // store vehicle id if present
-    const curVeh = (typeof window !== "undefined" && localStorage.getItem("playerVehicle")) || "none";
-    localStorage.setItem("playerVehicle", curVeh);
-  } catch (e) { console.warn("Failed to save player state", e); }
+    localStorage.setItem("playerTime", String(gameTime));
+    localStorage.setItem("playerVehicle", vehicle);
+    localStorage.setItem("playerQueue", JSON.stringify(queue));
+    localStorage.setItem("playerActiveStep", JSON.stringify(activeStep));
+    localStorage.setItem("playerStats", JSON.stringify(stats));
+    localStorage.setItem("playerInventory", JSON.stringify(inventory));
+    // --- НОВЫЕ ПОЛЯ ---
+    localStorage.setItem("playerSkills", JSON.stringify(skills));
+    localStorage.setItem("playerCharacter", JSON.stringify(character));
+  } catch (e) {
+    console.warn("Failed to save player state", e);
+  }
 }

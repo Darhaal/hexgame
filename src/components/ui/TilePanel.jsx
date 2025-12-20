@@ -2,67 +2,25 @@
 
 import { useState, useEffect, useRef } from "react";
 
-// Добавлены пропсы isOpen и onToggle
-export default function TilePanel({ tile, isOpen, onToggle, onSleep, onEat, onDrink }) {
+export default function TilePanel({ tile, isOpen, onToggle, onSleep, onEat, onDrink, isMoving }) {
   const panelRef = useRef(null);
-  const toggleRef = useRef(null);
-
-  // Локальное состояние для плавного закрытия
-  // Если тайл пропадает (игрок пошел), мы хотим закрыть панель, но не убивать DOM сразу,
-  // чтобы анимация проигралась.
-  // Но если tile стал null, нам нечего показывать внутри.
-  // Поэтому запоминаем последний тайл для отображения контента во время закрытия.
   const [lastTile, setLastTile] = useState(tile);
 
   useEffect(() => {
-    if (tile) {
-      setLastTile(tile);
-    }
+    if (tile) setLastTile(tile);
   }, [tile]);
 
-  // Используем lastTile для рендера, если tile null
   const displayTile = tile || lastTile;
 
-  // Клик вне панели для закрытия (только закрывает, не открывает)
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      // Если панель открыта, и клик не по ней и не по кнопке
-      if (
-        isOpen &&
-        panelRef.current &&
-        !panelRef.current.contains(event.target) &&
-        toggleRef.current &&
-        !toggleRef.current.contains(event.target)
-      ) {
-        // Вызываем внешний хендлер
-        if (onToggle) onToggle();
-      }
-    };
-
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
-  }, [isOpen, onToggle]);
-
-  const togglePanel = () => {
-    // Разрешаем переключать только если есть АКТИВНЫЙ тайл (игрок стоит)
-    if (!tile) return;
+  const togglePanel = (e) => {
+    e.stopPropagation();
     if (onToggle) onToggle();
   };
 
-  const isHome = displayTile && displayTile.q === 0 && displayTile.r === 0;
-
-  // Если у нас нет даже последнего тайла (самый старт игры), ничего не рендерим.
   if (!displayTile) return null;
 
-  // Вычисляем реальное состояние открытия:
-  // Панель открыта ТОЛЬКО если isOpen=true И есть активный tile.
-  // Если tile=null (игрок идет), панель должна быть закрыта визуально, даже если isOpen=true в родителе.
-  const isVisuallyOpen = isOpen && tile !== null;
-
-  // Кнопка видна, только если есть активный тайл (игрок стоит)
-  const isButtonVisible = tile !== null;
+  const isHome = displayTile.q === 0 && displayTile.r === 0;
+  const isVisuallyOpen = isOpen && !isMoving;
 
   return (
     <>
@@ -70,19 +28,20 @@ export default function TilePanel({ tile, isOpen, onToggle, onSleep, onEat, onDr
         ref={panelRef}
         style={{
           ...panelContainerStyle,
-          // Если нет активного тайла, панель уезжает (-100%)
-          transform: isVisuallyOpen ? "translateX(0)" : "translateX(-100%)",
-          boxShadow: isVisuallyOpen ? "5px 0 25px rgba(0,0,0,0.6)" : "none",
+          transform: isVisuallyOpen ? "translateX(0)" : "translateX(calc(-100% + 10px))",
         }}
+        onMouseDown={(e) => e.stopPropagation()}
+        onContextMenu={(e) => e.stopPropagation()}
       >
         <div style={innerContentStyle}>
           <div style={headerStyle}>
+            <div style={titleStyle}>Территория {displayTile.q} | {displayTile.r}</div>
             <h2 style={titleStyle}>
-              {isHome ? "🏠 Home" : (displayTile.name || `Tile ${displayTile.q},${displayTile.r}`)}
+              {isHome ? "БАЗА ОТДЫХА" : (displayTile.name || "НОВОЕ МЕСТО")}
             </h2>
             <div style={subTitleStyle}>
-              Coordinates: {displayTile.q}, {displayTile.r} <br/>
-              Type: {displayTile.type}
+                Координаты берега: {displayTile.q} , {displayTile.r} <br/>
+                Ландшафт: {displayTile.type ? displayTile.type.toLowerCase() : "не определен"}
             </div>
           </div>
 
@@ -90,30 +49,30 @@ export default function TilePanel({ tile, isOpen, onToggle, onSleep, onEat, onDr
             {isHome && (
               <div style={actionGroupStyle}>
                 <div style={infoBoxStyle}>
-                  Safe haven. Replenish your supplies and rest fully here.
+                  Здесь ваше основное пристанище. Можно отдохнуть, разобрать улов и подготовить снаряжение.
                 </div>
 
+                <div style={dividerStyle}>ДОСТУПНЫЕ ДЕЙСТВИЯ</div>
+
                 <button onClick={onSleep} style={actionBtnStyle}>
-                  <span style={emojiStyle}>🛏️</span>
+                  <div style={iconBoxStyle}>🛏️</div>
                   <div style={btnTextStyle}>
-                    <div style={btnTitleStyle}>Sleep</div>
-                    <div style={btnDescStyle}>+8h, Restore Energy</div>
+                    <div style={btnTitleStyle}>ОТДОХНУТЬ (8ч)</div>
+                    <div style={btnDescStyle}>Полное восстановление сил</div>
                   </div>
                 </button>
-
                 <button onClick={onEat} style={actionBtnStyle}>
-                  <span style={emojiStyle}>🍎</span>
+                  <div style={iconBoxStyle}>🥫</div>
                   <div style={btnTextStyle}>
-                    <div style={btnTitleStyle}>Eat Meal</div>
-                    <div style={btnDescStyle}>+50 Food</div>
+                    <div style={btnTitleStyle}>ПЕРЕКУСИТЬ</div>
+                    <div style={btnDescStyle}>Запас сытости +50</div>
                   </div>
                 </button>
-
                 <button onClick={onDrink} style={actionBtnStyle}>
-                  <span style={emojiStyle}>💧</span>
+                  <div style={iconBoxStyle}>🥤</div>
                   <div style={btnTextStyle}>
-                    <div style={btnTitleStyle}>Drink Water</div>
-                    <div style={btnDescStyle}>+50 Water</div>
+                    <div style={btnTitleStyle}>УТОЛИТЬ ЖАЖДУ</div>
+                    <div style={btnDescStyle}>Запас воды +50</div>
                   </div>
                 </button>
               </div>
@@ -122,13 +81,13 @@ export default function TilePanel({ tile, isOpen, onToggle, onSleep, onEat, onDr
             {!isHome && (displayTile.type === "base" || displayTile.type === "village") && (
               <div style={actionGroupStyle}>
                 <div style={infoBoxStyle}>
-                  A safe place to stop for a while.
+                  Небольшое поселение или лагерь. Можно сделать короткий привал.
                 </div>
                 <button onClick={onSleep} style={actionBtnStyle}>
-                  <span style={emojiStyle}>⛺</span>
+                  <div style={iconBoxStyle}>⛺</div>
                   <div style={btnTextStyle}>
-                    <div style={btnTitleStyle}>Rest</div>
-                    <div style={btnDescStyle}>+1h, Small recovery</div>
+                    <div style={btnTitleStyle}>СДЕЛАТЬ ПРИВАЛ</div>
+                    <div style={btnDescStyle}>Короткий отдых (1ч)</div>
                   </div>
                 </button>
               </div>
@@ -136,163 +95,230 @@ export default function TilePanel({ tile, isOpen, onToggle, onSleep, onEat, onDr
 
             {!isHome && displayTile.type !== "base" && displayTile.type !== "village" && (
                  <div style={infoBoxStyle}>
-                    Just a wild land. Nothing to do here.
+                    Открытая местность. Идеально подходит для поиска рыбных мест. Опасностей не наблюдается.
                  </div>
             )}
+          </div>
+
+          <div style={footerStyle}>
+             Заметка от: {new Date().toLocaleDateString()}
           </div>
         </div>
       </aside>
 
-      {/* Кнопка-toggle сбоку */}
       <div
-        ref={toggleRef}
         onClick={togglePanel}
+        onMouseDown={(e) => e.stopPropagation()}
         style={{
             ...toggleBtnStyle,
-            left: isVisuallyOpen ? "400px" : "0",
-            borderLeft: isVisuallyOpen ? "none" : "2px solid #2d1b0e",
-            // ВАЖНО: Убран transform контейнера
-            boxSizing: "border-box",
-            opacity: isButtonVisible ? 1 : 0,
-            pointerEvents: isButtonVisible ? 'all' : 'none'
+            left: isVisuallyOpen ? "380px" : "0",
         }}
       >
-        {/* Вращаем только стрелочку */}
-        <span style={{
-            display: "inline-block",
-            transition: "transform 0.3s ease",
-            transform: isVisuallyOpen ? "rotate(0deg)" : "rotate(180deg)"
-        }}>
-          ◀
+        <span style={toggleTextStyle}>
+          {isOpen ? "СВЕРНУТЬ" : "ТЕРРИТОРИЯ"}
         </span>
       </div>
     </>
   );
 }
 
-// --- СТИЛИ ---
+// --- СТИЛИ "POST-SOVIET SURVIVAL" ---
 
 const panelContainerStyle = {
   position: "absolute",
   top: 0,
   left: 0,
-  width: "400px",
+  width: "380px",
   height: "100vh",
-
-  // Текстура дерева
-  backgroundImage: `url('/textures/wood_dark.jpg')`,
+  backgroundColor: "#4a4036",
+  backgroundImage: `
+    linear-gradient(to right, rgba(0,0,0,0.6) 0%, rgba(0,0,0,0) 10%, rgba(0,0,0,0) 90%, rgba(0,0,0,0.6) 100%),
+    repeating-linear-gradient(45deg, #4a4036 0, #4a4036 2px, #3e352d 2px, #3e352d 4px)
+  `,
   backgroundSize: 'cover',
-  backgroundColor: '#4E342E',
-
+  borderRight: "4px solid #2d241b",
+  boxShadow: "none",
   zIndex: 50,
-  paddingRight: "16px",
-  paddingBottom: "16px",
-  paddingTop: "16px",
+  padding: "20px 15px 20px 10px",
   display: "flex",
   flexDirection: "column",
-  transition: "transform 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94), box-shadow 0.3s ease",
-  boxSizing: 'border-box'
+  transition: "transform 0.4s cubic-bezier(0.22, 1, 0.36, 1)",
+  boxSizing: 'border-box',
+  pointerEvents: 'auto'
 };
 
 const innerContentStyle = {
-  width: '100%',
-  height: '100%',
-  background: '#fdfbf7', // Бумага
-  border: 'none',
-  borderRadius: '4px',
-  padding: '12px',
-  display: 'flex',
-  flexDirection: 'column',
-  boxSizing: 'border-box',
-  boxShadow: 'inset 0 0 15px rgba(0,0,0,0.15)',
-  overflow: 'hidden'
+  flex: 1,
+  backgroundColor: "#e3dac9",
+  backgroundImage: `
+    linear-gradient(#cfc6b8 1px, transparent 1px),
+    linear-gradient(90deg, #cfc6b8 1px, transparent 1px)`,
+  backgroundSize: "20px 20px",
+  boxShadow: "inset 0 0 40px rgba(0,0,0,0.2), 0 0 10px rgba(0,0,0,0.3)",
+  borderRadius: "2px",
+  padding: "20px",
+  display: "flex",
+  flexDirection: "column",
+  position: "relative",
+  overflow: "hidden",
+  border: "1px solid #b0a390"
+};
+
+const screwStyle = {
+    position: 'absolute',
+    color: '#8c7b65',
+    fontSize: '20px',
+    userSelect: 'none',
+    textShadow: '0 1px 0 rgba(255,255,255,0.2)',
+    zIndex: 2
 };
 
 const headerStyle = {
-    borderBottom: '2px solid #8D6E63',
-    paddingBottom: '10px',
-    marginBottom: '10px',
-    opacity: 0.9
+    borderBottom: "2px solid #5d4037",
+    paddingBottom: "15px",
+    marginBottom: "20px",
+};
+
+const stampStyle = {
+    border: "2px solid #c23b22",
+    color: "#c23b22",
+    display: "inline-block",
+    padding: "2px 8px",
+    fontSize: "10px",
+    fontWeight: "bold",
+    transform: "rotate(-2deg)",
+    marginBottom: "10px",
+    letterSpacing: "1px",
+    opacity: 0.8
 };
 
 const titleStyle = {
-    margin: '0 0 5px 0',
-    fontSize: '24px',
-    color: '#3E2723',
-    fontWeight: 'bold'
+    margin: "0",
+    fontSize: "22px",
+    color: "#2b221b",
+    fontFamily: "'Courier New', monospace",
+    fontWeight: "900",
+    textTransform: "uppercase",
+    lineHeight: "1.2"
 };
 
 const subTitleStyle = {
-    color: '#5D4037',
-    fontSize: '13px',
-    fontFamily: 'monospace',
-    lineHeight: '1.4'
+    marginTop: "8px",
+    color: "#5d4037",
+    fontSize: "12px",
+    fontFamily: "'Courier New', monospace",
+    lineHeight: "1.5",
+    borderLeft: "2px solid #8c7b65",
+    paddingLeft: "8px"
 };
 
 const scrollContentStyle = {
     flex: 1,
-    overflowY: 'auto',
-    marginBottom: '10px'
+    overflowY: "auto",
+    paddingRight: "5px",
+    scrollbarWidth: "thin",
+    scrollbarColor: "#8c7b65 transparent"
 };
 
 const actionGroupStyle = {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '12px'
+    display: "flex",
+    flexDirection: "column",
+    gap: "10px"
 };
 
 const infoBoxStyle = {
-  backgroundColor: '#EFEBE9',
-  padding: '12px',
-  borderRadius: '6px',
-  color: '#4E342E',
-  fontSize: '14px',
-  lineHeight: '1.5',
-  borderLeft: '4px solid #8D6E63',
-  fontStyle: 'italic'
+  backgroundColor: "rgba(255,255,255,0.5)",
+  border: "1px dashed #8c7b65",
+  padding: "10px",
+  color: "#3e2723",
+  fontSize: "13px",
+  fontFamily: "'Courier New', monospace",
+  lineHeight: "1.4",
+  marginBottom: "10px"
+};
+
+const dividerStyle = {
+    fontSize: "10px",
+    color: "#8c7b65",
+    textAlign: "center",
+    margin: "10px 0",
+    letterSpacing: "4px",
+    textTransform: "uppercase",
+    borderBottom: "1px solid #cfc6b8",
+    lineHeight: "0.1em"
 };
 
 const actionBtnStyle = {
-  display: 'flex',
-  alignItems: 'center',
-  gap: '12px',
-  padding: '12px',
-  backgroundColor: '#fff',
-  border: '1px solid #D7CCC8',
-  borderRadius: '6px',
-  cursor: 'pointer',
-  transition: 'all 0.2s ease',
-  boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
-  textAlign: 'left'
+  display: "flex",
+  alignItems: "center",
+  gap: "15px",
+  padding: "10px",
+  backgroundColor: "#f0e6d2",
+  border: "1px solid #8c7b65",
+  borderBottom: "3px solid #5d4037",
+  borderRadius: "4px",
+  cursor: "pointer",
+  transition: "all 0.1s ease",
+  color: "#3e2723",
+  position: "relative"
 };
 
-const emojiStyle = { fontSize: '26px' };
+const iconBoxStyle = {
+    fontSize: "24px",
+    filter: "grayscale(0.5) sepia(0.5)"
+};
 
-const btnTextStyle = { display: 'flex', flexDirection: 'column' };
+const btnTextStyle = {
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "flex-start"
+};
 
-const btnTitleStyle = { fontWeight: 'bold', color: '#3E2723', fontSize: '15px' };
+const btnTitleStyle = {
+    fontWeight: "bold",
+    fontSize: "14px",
+    fontFamily: "'Courier New', monospace",
+    textTransform: "uppercase"
+};
 
-const btnDescStyle = { fontSize: '12px', color: '#795548' };
+const btnDescStyle = {
+    fontSize: "10px",
+    color: "#6d5645"
+};
+
+const footerStyle = {
+    marginTop: "auto",
+    paddingTop: "10px",
+    borderTop: "1px solid #b0a390",
+    fontSize: "10px",
+    color: "#8c7b65",
+    fontFamily: "'Courier New', monospace",
+    textAlign: "right",
+    fontStyle: "italic"
+};
+
+const toggleTextStyle = {
+    writingMode: 'vertical-rl', textOrientation: 'mixed', transform: 'rotate(180deg)',
+    fontSize: '11px', letterSpacing: '2px', color: '#000', fontWeight: 'bold'
+};
 
 const toggleBtnStyle = {
-    position: 'absolute',
-    top: '50%',
-    width: '24px',
-    height: '60px',
-    marginTop: '-30px',
-    backgroundColor: '#4E342E',
-    border: '2px solid #2d1b0e',
-    // borderLeft динамически переключается в компоненте
-    borderRadius: '0 8px 8px 0',
-    color: '#D7CCC8',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    cursor: 'pointer',
-    zIndex: 51,
-    // transition теперь без transform для контейнера
-    transition: 'left 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94), opacity 0.3s ease',
-    fontSize: '12px',
-    boxShadow: '4px 0 10px rgba(0,0,0,0.3)',
-    boxSizing: 'border-box' // Важно чтобы границы не увеличивали размер
+    position: "absolute",
+    top: "50%",
+    width: "40px",
+    height: "140px",
+    marginTop: "-70px",
+    backgroundColor: "#c23b22",
+    background: "linear-gradient(to right, #a3321d, #c23b22)",
+    border: "2px solid #752415",
+    borderLeft: "none",
+    borderRadius: "0 8px 8px 0",
+    boxShadow: "4px 2px 10px rgba(0,0,0,0.5)",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    cursor: "pointer",
+    zIndex: 49,
+    transition: "left 0.4s cubic-bezier(0.22, 1, 0.36, 1)",
+    pointerEvents: "auto"
 };

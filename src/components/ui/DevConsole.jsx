@@ -2,116 +2,110 @@
 
 import { useState } from "react";
 // ВАЖНО: Предполагается, что ITEMS экспортируется из itemsData.js
-// Если файл еще не создан, это вызовет ошибку, но мы создали itemsData.js в предыдущем шаге (в памяти)
-// Для реального проекта убедитесь, что путь верный.
 import { ITEMS } from "../../data/itemsData";
 
 export default function DevConsole({ onAddSteps, onReset, onToggleDebug, onSetVehicle, onAddStat, onSpawnItem }) {
   const [open, setOpen] = useState(false);
   const [spawnOpen, setSpawnOpen] = useState(false);
 
-  // Хелпер для добавления времени в минутах
   const addTime = (min) => onAddSteps(min);
 
   return (
     <div style={{
       position: "fixed",
-      top: 0,
-      left: 0,
-      width: "70%",
-      background: "rgba(0,0,0,0.9)",
-      color: "white",
-      padding: "10px",
-      zIndex: 9999,
+      top: 10,
+      left: 10,
+      width: open ? "300px" : "auto", // Компактная ширина
+      background: "rgba(0,0,0,0.85)",
+      color: "#eee",
+      padding: "8px",
+      zIndex: 9000,
       fontFamily: "monospace",
-      borderBottom: "2px solid #444",
+      border: "1px solid #444",
+      borderRadius: "4px",
       maxHeight: "80vh",
-      overflowY: "auto"
+      overflowY: "auto",
+      boxShadow: "0 4px 10px rgba(0,0,0,0.5)"
     }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <div style={{ fontWeight: "bold", color: "#4fc3f7" }}>🛠️ DEV CONSOLE</div>
-        <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
-          <button onClick={() => setOpen(!open)} style={btnStyle}>
-            {open ? "Hide" : "Show"}
-          </button>
-        </div>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "10px" }}>
+        {open && <div style={{ fontWeight: "bold", color: "#4fc3f7", fontSize: "12px" }}>🔧 DEV TOOLS</div>}
+        <button onClick={() => setOpen(!open)} style={{...btnStyle, fontSize: '10px', padding: '2px 6px'}}>
+          {open ? "✕" : "🔧 DEV"}
+        </button>
       </div>
 
       {open && (
-        <div style={{ marginTop: "10px" }}>
+        <div style={{ marginTop: "10px", display: 'flex', flexDirection: 'column', gap: '8px' }}>
 
-          {/* Time Warp Section */}
-          <div style={{ marginBottom: "12px", paddingBottom: "8px", borderBottom: "1px solid #333" }}>
-            <div style={labelStyle}>⏳ Time Warp</div>
-            <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
-                <button onClick={() => addTime(-60)} style={btnStyle}>⏪ -1h</button>
-                <button onClick={() => addTime(-10)} style={btnStyle}>-10m</button>
-                <button onClick={() => addTime(10)} style={btnStyle}>+10m</button>
-                <button onClick={() => addTime(60)} style={btnStyle}>+1h ⏩</button>
-                <button onClick={() => addTime(480)} style={{...btnStyle, color: "#81c784", borderColor: "#2e7d32"}}>🛌 Sleep (+8h)</button>
-                <button onClick={() => addTime(1440)} style={{...btnStyle, color: "#ffd54f", borderColor: "#fbc02d"}}>☀️ Next Day</button>
+          {/* Time Warp */}
+          <div style={sectionStyle}>
+            <div style={labelStyle}>⏳ TIME</div>
+            <div style={rowStyle}>
+                <button onClick={() => addTime(-60)} style={btnStyle}>-1h</button>
+                <button onClick={() => addTime(60)} style={btnStyle}>+1h</button>
+                <button onClick={() => addTime(480)} style={{...btnStyle, color: "#81c784"}}>Sleep</button>
             </div>
           </div>
 
-          {/* Stats Controls */}
-          <div style={{ marginBottom: "12px", paddingBottom: "8px", borderBottom: "1px solid #333" }}>
-             <div style={labelStyle}>❤️ Vitality (+50)</div>
-             <div style={{ display: "flex", gap: "8px" }}>
-                <button onClick={() => onAddStat('food', 50)} style={{ ...btnStyle, color: "#81c784" }}>🍔 Food</button>
-                <button onClick={() => onAddStat('water', 50)} style={{ ...btnStyle, color: "#4fc3f7" }}>💧 Water</button>
-                <button onClick={() => onAddStat('fatigue', 50)} style={{ ...btnStyle, color: "#fff176" }}>⚡ Energy</button>
+          {/* Stats */}
+          <div style={sectionStyle}>
+             <div style={labelStyle}>❤️ STATS</div>
+             <div style={rowStyle}>
+                <button onClick={() => onAddStat('food', 50)} style={{ ...btnStyle, color: "#e6a749" }}>Food</button>
+                <button onClick={() => onAddStat('water', 50)} style={{ ...btnStyle, color: "#4fc3f7" }}>H2O</button>
+                <button onClick={() => onAddStat('fatigue', 50)} style={{ ...btnStyle, color: "#aed581" }}>Nrg</button>
              </div>
           </div>
 
-          {/* Vehicles */}
-          <div style={{ marginBottom: "12px", paddingBottom: "8px", borderBottom: "1px solid #333" }}>
-            <div style={labelStyle}>🏇 Transport</div>
-            <div style={{ display: "flex", gap: "8px" }}>
-                <button onClick={() => onSetVehicle && onSetVehicle("horse")} style={btnStyle}>🐎 Horse</button>
-                <button onClick={() => onSetVehicle && onSetVehicle("boat")} style={btnStyle}>🛶 Boat</button>
-                <button onClick={() => onSetVehicle && onSetVehicle("none")} style={btnStyle}>👣 Walk</button>
+          {/* Transport */}
+          <div style={sectionStyle}>
+            <div style={labelStyle}>🏇 MOUNT</div>
+            <div style={rowStyle}>
+                <button onClick={() => onSetVehicle("horse")} style={btnStyle}>Horse</button>
+                <button onClick={() => onSetVehicle("boat")} style={btnStyle}>Boat</button>
+                <button onClick={() => onSetVehicle("none")} style={btnStyle}>Foot</button>
             </div>
           </div>
 
-          {/* Item Spawner */}
-          <div style={{ marginBottom: "12px", paddingBottom: "8px", borderBottom: "1px solid #333" }}>
-            <div
-                style={{...labelStyle, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '5px'}}
+          {/* Spawner */}
+          <div style={sectionStyle}>
+            <button
+                style={{...btnStyle, width: '100%', textAlign: 'left'}}
                 onClick={() => setSpawnOpen(!spawnOpen)}
             >
-                🎁 ITEM SPAWNER {spawnOpen ? '▼' : '▶'}
-            </div>
+                🎁 SPAWN ITEM {spawnOpen ? '▼' : '▶'}
+            </button>
 
             {spawnOpen && (
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))", gap: "8px", marginTop: "8px" }}>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "4px", marginTop: "4px" }}>
                     {Object.values(ITEMS).map(item => (
                         <button
                             key={item.id}
-                            onClick={() => onSpawnItem && onSpawnItem(item.id)}
-                            style={{...btnStyle, textAlign: 'left', display: 'flex', alignItems: 'center', gap: '6px'}}
+                            onClick={() => onSpawnItem(item.id)}
+                            style={{...btnStyle, fontSize: '10px', padding: '4px', textAlign: 'left'}}
                         >
-                            <span style={{fontSize: '16px'}}>{item.icon}</span>
-                            <span style={{fontSize: '11px'}}>{item.name}</span>
+                            {item.icon} {item.name.slice(0, 8)}..
                         </button>
                     ))}
                 </div>
             )}
           </div>
 
-          {/* System */}
-          <div style={{ display: "flex", gap: "8px", marginTop: "16px" }}>
-            <button onClick={onReset} style={{ ...btnStyle, background: "#5d1010", borderColor: "#a00" }}>🔥 Reset World</button>
-          </div>
+          {/* Reset */}
+          <button onClick={onReset} style={{ ...btnStyle, background: "#5d1010", borderColor: "#a00", marginTop: "5px" }}>
+             🔥 RESET WORLD
+          </button>
         </div>
       )}
     </div>
   );
 }
 
+const sectionStyle = { borderBottom: "1px solid #333", paddingBottom: "6px" };
+const rowStyle = { display: "flex", gap: "4px", flexWrap: "wrap" };
 const btnStyle = {
-    padding: "6px 12px", background: "#333", color: "#eee", border: "1px solid #555", borderRadius: "4px", cursor: "pointer", fontSize: "12px"
+    padding: "4px 8px", background: "#333", color: "#ccc", border: "1px solid #555", borderRadius: "3px", cursor: "pointer", fontSize: "11px", flex: 1
 };
-
 const labelStyle = {
-    fontSize: "11px", color: "#888", textTransform: "uppercase", letterSpacing: "1px", marginBottom: "6px", fontWeight: "bold"
+    fontSize: "10px", color: "#666", marginBottom: "4px", fontWeight: "bold"
 };

@@ -1,546 +1,250 @@
 "use client";
 
-import { useState } from "react";
-import { getItemData } from "../../data/itemsData";
-import { SKILLS_DATA } from "../../data/skillsData";
+import { useState, useEffect } from "react";
+
+// --- ДАННЫЕ (РЫБАЛКА) ---
+const ITEMS_DB = {
+  "rod_basic": { name: "Удочка (Бамбук)", type: "Снасти", weight: 0.5, icon: "🎣", description: "Простая поплавочная удочка. Надежная.", perishTime: 0 },
+  "worms": { name: "Черви", type: "Наживка", weight: 0.1, icon: "🪱", description: "Навозные. Рыба клюет.", perishTime: 1200 },
+  "bread": { name: "Хлеб", type: "Наживка", weight: 0.2, icon: "🍞", description: "Мякиш. Для мирной рыбы.", perishTime: 600 },
+  "vodka": { name: "Фляга", type: "Напиток", weight: 0.5, icon: "🍶", description: "Согревает и радует.", perishTime: 0 },
+  "knife": { name: "Нож перочинный", type: "Инструмент", weight: 0.1, icon: "🔪", description: "Для мелких работ.", perishTime: 0 },
+  "fish_perch": { name: "Окунь", type: "Улов", weight: 0.3, icon: "🐟", description: "Речной хищник.", perishTime: 120 },
+};
+
+const SKILLS_DB = {
+  "fishing": { name: "Рыбная ловля", icon: "🎣" },
+  "cooking": { name: "Кулинария", icon: "🍳" },
+  "survival": { name: "Выживание", icon: "🌲" },
+  "crafting": { name: "Мастерство", icon: "🔨" }
+};
+
+const getItemData = (id) => ITEMS_DB[id] || { name: "Предмет", type: "Разное", weight: 0, icon: "📦", description: "...", perishTime: 0 };
 
 export default function InventoryPanel({
-  inventory,
-  skills,
-  character,
+  inventory = [],
+  skills = {},
+  character = {},
   onUseItem,
-  gameTime,
-  onRenameCharacter,
-  onUpgradeSkill
+  initialTab = 'inventory',
+  onClose
 }) {
-  const [isOpen, setIsOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState('inventory');
+  const [activeTab, setActiveTab] = useState(initialTab);
   const [selectedSlotIndex, setSelectedSlotIndex] = useState(null);
-  const [tempName, setTempName] = useState(character?.name || "");
 
-  const toggleInventory = () => setIsOpen(!isOpen);
+  useEffect(() => {
+    setActiveTab(initialTab);
+  }, [initialTab]);
 
-  // --- ЛОГИКА ИНВЕНТАРЯ ---
   const selectedInstance = selectedSlotIndex !== null ? inventory[selectedSlotIndex] : null;
   const selectedData = selectedInstance ? getItemData(selectedInstance.itemId) : null;
 
-  const getFreshness = (instance, data) => {
-      if (!data.perishTime) return "Вечный";
-      const ageMinutes = gameTime - instance.createdAt;
-      const remainingMinutes = data.perishTime - ageMinutes;
-      if (remainingMinutes <= 0) return "Испорчено";
-      const hours = Math.floor(remainingMinutes / 60);
-      return `${hours} ч.`;
-  };
-
-  // --- ЛОГИКА НАСТРОЕК ---
-  const handleNameSave = () => {
-      if (onRenameCharacter && tempName.trim() !== "") {
-          onRenameCharacter(tempName);
+  const getTabTitle = () => {
+      switch(activeTab) {
+          case 'inventory': return "ИНВЕНТАРЬ";
+          case 'character': return "ПРОФИЛЬ РЫБОЛОВА";
+          case 'skills': return "НАВЫКИ И ОПЫТ";
+          case 'journal': return "ЗАМЕТКИ";
+          default: return "МЕНЮ";
       }
   };
 
   return (
-    <>
-      {/* КНОПКА-РЮКЗАК */}
-      <div
-        onClick={toggleInventory}
-        style={{
-            ...backpackBtnStyle,
-            transform: isOpen ? "scale(0.9)" : "scale(1)"
-        }}
-        title="Open Menu"
-      >
-        🎒
-      </div>
+    <div style={overlayStyle}>
+      <div style={folderBodyStyle}>
 
-      {isOpen && (
-        <div style={containerWrapperStyle}>
+        {/* Заголовок страницы */}
+        <div style={headerContainerStyle}>
+            <div style={headerTitleStyle}>{getTabTitle()}</div>
+            <button onClick={onClose} style={closeBtnStyle} title="Закрыть">
+                ✕
+            </button>
+        </div>
 
-            {/* БОКОВЫЕ ВКЛАДКИ (Слева) */}
-            <div style={sideTabsContainerStyle}>
-                <button
-                    onClick={() => setActiveTab('inventory')}
-                    style={getTabStyle(activeTab === 'inventory')}
-                    title="Инвентарь"
-                >🎒</button>
-                <button
-                    onClick={() => setActiveTab('character')}
-                    style={getTabStyle(activeTab === 'character')}
-                    title="Персонаж"
-                >👤</button>
-                <button
-                    onClick={() => setActiveTab('skills')}
-                    style={getTabStyle(activeTab === 'skills')}
-                    title="Навыки"
-                >⚡</button>
-                <button
-                    onClick={() => setActiveTab('settings')}
-                    style={getTabStyle(activeTab === 'settings')}
-                    title="Настройки"
-                >⚙️</button>
-                <button
-                    onClick={() => setIsOpen(false)}
-                    style={{...getTabStyle(false), marginTop: 'auto', color: '#ef5350', borderColor: '#ef5350'}}
-                    title="Закрыть"
-                >✕</button>
-            </div>
+        {/* Контент */}
+        <div style={paperContentStyle}>
+            <div style={contentGridStyle}>
+                {/* Левая колонка */}
+                <div style={leftColStyle}>
 
-            {/* ОСНОВНАЯ ПАНЕЛЬ */}
-            <div style={panelContainerStyle}>
-
-                <div style={headerStyle}>
-                    <span>{getTabTitle(activeTab)}</span>
-                </div>
-
-                <div style={contentAreaStyle}>
-
-                    {/* --- ИНВЕНТАРЬ --- */}
                     {activeTab === 'inventory' && (
-                    <div style={inventoryLayoutGrid}>
-                        {/* Левая часть: Детали */}
-                        <div style={detailsPanelStyle}>
-                        {selectedInstance && selectedData ? (
-                            <>
-                            <div style={itemBigIconStyle}>{selectedData.icon}</div>
-                            <h3 style={itemNameStyle}>{selectedData.name}</h3>
-                            <div style={itemTypeStyle}>{selectedData.type.toUpperCase()}</div>
-
-                            <div style={statsContainerStyle}>
-                                <div style={statRowStyle}>
-                                    <span>Вес:</span>
-                                    <span style={{fontWeight: 'bold'}}>{selectedData.weight} кг</span>
-                                </div>
-                                <div style={statRowStyle}>
-                                    <span>Годность:</span>
-                                    <span style={{fontWeight: 'bold', color: getFreshness(selectedInstance, selectedData) === "Испорчено" ? '#c62828' : '#2e7d32'}}>
-                                        {getFreshness(selectedInstance, selectedData)}
-                                    </span>
-                                </div>
-                            </div>
-
-                            <p style={itemDescStyle}>{selectedData.description}</p>
-
-                            <button
-                                style={useBtnStyle}
-                                onClick={() => onUseItem && onUseItem(selectedInstance, selectedSlotIndex)}
-                            >
-                                ИСПОЛЬЗОВАТЬ
-                            </button>
-                            </>
-                        ) : (
-                            <div style={emptyDetailsStyle}>Выберите предмет</div>
-                        )}
-                        </div>
-
-                        {/* Правая часть: Сетка (50 слотов) */}
-                        <div style={gridContainerStyle}>
-                        {inventory.map((itemInstance, index) => {
-                            const data = itemInstance ? getItemData(itemInstance.itemId) : null;
-                            const isSelected = selectedSlotIndex === index;
-                            return (
-                                <div
-                                key={index}
-                                onClick={() => setSelectedSlotIndex(index)}
-                                style={{
-                                    ...slotStyle,
-                                    // Оранжевая рамка если выбран, иначе серая
-                                    borderColor: isSelected ? '#F9A825' : '#BCAAA4',
-                                    // Белый фон
-                                    backgroundColor: isSelected ? '#FFF' : '#FFFFFF',
-                                    boxShadow: isSelected ? 'inset 0 0 5px rgba(0,0,0,0.1)' : 'none',
-                                    borderWidth: isSelected ? '2px' : '1px'
-                                }}
-                                >
-                                {data && <div style={slotIconStyle}>{data.icon}</div>}
-                                </div>
-                            );
-                        })}
-                        {/* Добиваем до 50 визуально, если массив меньше */}
-                        {Array.from({ length: Math.max(0, 50 - inventory.length) }).map((_, i) => (
-                            <div key={`extra-${i}`} style={{...slotStyle, opacity: 0.5}}></div>
-                        ))}
-                        </div>
-                    </div>
-                    )}
-
-                    {/* --- ПЕРСОНАЖ --- */}
-                    {activeTab === 'character' && (
-                        <div style={characterTabStyle}>
-                            <div style={charInfoBlockStyle}>
-                                <div style={avatarPlaceholderStyle}>👤</div>
-                                <h2 style={{color: '#3E2723', margin: '10px 0'}}>{character?.name || "Unknown"}</h2>
-                                <div style={charStatTextStyle}>Здоровье: 100%</div>
-                                <div style={charStatTextStyle}>Уровень: 1</div>
-                            </div>
-
-                            <div style={equipmentGridStyle}>
-                                <div style={equipSlotLabelStyle}>Голова</div>
-                                <div style={equipSlotStyle}>🧢</div>
-
-                                <div style={equipSlotLabelStyle}>Тело</div>
-                                <div style={equipSlotStyle}>👕</div>
-
-                                <div style={equipSlotLabelStyle}>Ноги</div>
-                                <div style={equipSlotStyle}>👖</div>
-
-                                <div style={equipSlotLabelStyle}>Обувь</div>
-                                <div style={equipSlotStyle}>🥾</div>
-
-                                <div style={equipSlotLabelStyle}>Оружие</div>
-                                <div style={equipSlotStyle}>🗡️</div>
-
-                                <div style={equipSlotLabelStyle}>Слот</div>
-                                <div style={equipSlotStyle}>🛡️</div>
-                            </div>
+                        <div style={invListContainerStyle}>
+                            {inventory.length > 0 ? inventory.map((item, idx) => {
+                                const data = item ? getItemData(item.itemId) : null;
+                                const isSelected = selectedSlotIndex === idx;
+                                return (
+                                    <div
+                                        key={idx}
+                                        onClick={() => setSelectedSlotIndex(idx)}
+                                        style={{
+                                            ...invRowStyle,
+                                            backgroundColor: isSelected ? 'rgba(78, 52, 46, 0.1)' : 'transparent',
+                                            borderLeft: isSelected ? '4px solid #5d4037' : '4px solid transparent',
+                                            borderBottom: '1px solid #dcd6c5'
+                                        }}
+                                    >
+                                        <div style={{width: '40px', fontSize: '24px', textAlign: 'center'}}>
+                                            {data ? data.icon : <span style={{opacity:0.2}}>📦</span>}
+                                        </div>
+                                        <div style={{flex: 1, fontWeight: data ? '600' : 'normal', color: data ? '#2b221b' : '#999'}}>
+                                            {data ? data.name : "Пустой слот"}
+                                        </div>
+                                        {item && <div style={qtyTagStyle}>1 шт</div>}
+                                    </div>
+                                );
+                            }) : (
+                                <div style={{textAlign:'center', padding:'40px', color:'#888'}}>В рюкзаке пока пусто...</div>
+                            )}
                         </div>
                     )}
 
-                    {/* --- НАВЫКИ --- */}
                     {activeTab === 'skills' && (
-                        <div style={skillsTabStyle}>
-                            <h3 style={{color: '#3E2723', borderBottom: '1px solid #BCAAA4', paddingBottom: '5px'}}>Навыки выживания</h3>
-                            <div style={skillsListStyle}>
-                                {Object.entries(skills).map(([key, skill]) => {
-                                    const meta = SKILLS_DATA[key];
-                                    if(!meta) return null;
-                                    const progress = (skill.xp % 100);
-                                    return (
-                                        <div key={key} style={skillRowStyle}>
-                                            <div style={skillIconStyle}>{meta.icon}</div>
-                                            <div style={{flex: 1}}>
-                                                <div style={{display:'flex', justifyContent:'space-between', marginBottom:'4px'}}>
-                                                    <span style={{fontWeight:'bold', color: '#3E2723'}}>{meta.name}</span>
-                                                    <span style={{fontSize:'12px', color:'#5D4037'}}>Ур. {skill.level}</span>
-                                                </div>
-                                                <div style={progressBarContainerStyle}>
-                                                    <div style={{...progressBarFillStyle, width: `${progress}%`}}></div>
-                                                </div>
+                        <div style={invListContainerStyle}>
+                            {Object.entries(skills).map(([key, skill]) => {
+                                const meta = SKILLS_DB[key];
+                                if(!meta) return null;
+                                return (
+                                    <div key={key} style={skillRowStyle}>
+                                        <div style={{fontSize: '28px', marginRight: '15px'}}>{meta.icon}</div>
+                                        <div style={{flex: 1}}>
+                                            <div style={{display:'flex', justifyContent:'space-between', marginBottom: '8px'}}>
+                                                <span style={{fontWeight:'bold', color: '#5d4037'}}>{meta.name}</span>
+                                                <span style={{fontSize:'12px'}}>УРОВЕНЬ {skill.level}</span>
+                                            </div>
+                                            <div style={progressBgStyle}>
+                                                <div style={{...progressFillStyle, width: `${skill.xp}%`}}></div>
                                             </div>
                                         </div>
-                                    );
-                                })}
+                                    </div>
+                                )
+                            })}
+                        </div>
+                    )}
+
+                    {activeTab === 'character' && (
+                        <div style={{padding: '20px'}}>
+                            <div style={{display:'flex', gap:'25px', marginBottom: '30px', alignItems: 'center'}}>
+                                <div style={avatarBoxStyle}>👤</div>
+                                <div>
+                                    <div style={{fontWeight:'bold', fontSize:'22px', color: '#2b221b'}}>{character.name || "Рыболов"}</div>
+                                    <div style={{color: '#6d5645', marginTop:'4px'}}>Любитель рыбной ловли</div>
+                                </div>
                             </div>
-                            <button onClick={onUpgradeSkill} style={{...useBtnStyle, marginTop: '20px'}}>
-                                ТРЕНИРОВКА (+XP)
+                            <div style={dividerStyle}>ЭКИПИРОВКА</div>
+                            <div style={invListContainerStyle}>
+                                <div>🧥 Штормовка брезентовая</div>
+                                <div>👢 Сапоги резиновые</div>
+                                <div>👒 Панама светлая</div>
+                            </div>
+                        </div>
+                    )}
+
+                    {activeTab === 'journal' && (
+                        <div style={{padding: '20px'}}>
+                            <div style={dividerStyle}>ХРОНИКА СОБЫТИЙ</div>
+                            <div style={invListContainerStyle}>— Прибыл на берег. Погода располагает к хорошему клеву.</div>
+                            <div style={invListContainerStyle}>— Подготовил снасти, проверил наживку.</div>
+                        </div>
+                    )}
+
+                </div>
+
+                {/* Правая колонка */}
+                <div style={rightColStyle}>
+                    <div style={descHeaderStyle}>ДЕТАЛИ</div>
+                    {selectedData ? (
+                        <>
+                            <div style={bigIconStyle}>{selectedData.icon}</div>
+                            <div style={itemTitleStyle}>{selectedData.name}</div>
+                            <div style={itemTypeStyle}>{selectedData.type} • {selectedData.weight} кг</div>
+                            <div style={itemDescBoxStyle}>
+                                {selectedData.description}
+                            </div>
+                            <button onClick={onUseItem} style={actionButtonStyle}>
+                                ПРИМЕНИТЬ
                             </button>
+                        </>
+                    ) : (
+                        <div style={{textAlign:'center', color:'#8c7b65', marginTop:'60px', fontStyle:'italic', padding: '0 20px'}}>
+                            Выберите предмет для получения подробной информации.
                         </div>
                     )}
-
-                    {/* --- НАСТРОЙКИ --- */}
-                    {activeTab === 'settings' && (
-                        <div style={settingsTabStyle}>
-                            <h3 style={{color: '#3E2723'}}>Настройки профиля</h3>
-                            <div style={{display: 'flex', flexDirection: 'column', gap: '10px', maxWidth: '300px'}}>
-                                <label style={{fontSize: '12px', color: '#5D4037'}}>Имя выжившего</label>
-                                <input
-                                    type="text"
-                                    value={tempName}
-                                    onChange={(e) => setTempName(e.target.value)}
-                                    style={inputStyle}
-                                />
-                                <button onClick={handleNameSave} style={useBtnStyle}>СОХРАНИТЬ</button>
-                            </div>
-                        </div>
-                    )}
-
                 </div>
             </div>
         </div>
-      )}
-    </>
+      </div>
+    </div>
   );
 }
 
-function getTabTitle(tab) {
-    switch(tab) {
-        case 'inventory': return 'РЮКЗАК';
-        case 'character': return 'ПЕРСОНАЖ';
-        case 'skills': return 'НАВЫКИ';
-        case 'settings': return 'НАСТРОЙКИ';
-        default: return '';
-    }
-}
-
-// --- СТИЛИ ---
-
-const backpackBtnStyle = {
-  position: 'absolute',
-  bottom: '30px',
-  right: '30px',
-  width: '70px',
-  height: '70px',
-  backgroundColor: '#5D4037', // Кожа
-  border: '4px solid #3E2723',
-  borderRadius: '50%',
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  fontSize: '36px',
-  cursor: 'pointer',
-  zIndex: 60,
-  boxShadow: '0 5px 15px rgba(0,0,0,0.5)',
-  transition: 'transform 0.1s ease',
-  userSelect: 'none'
+// --- STYLES (Обновленные под TilePanel / Коричневая гамма) ---
+const overlayStyle = { position: 'fixed', inset: 0, zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none' };
+const folderBodyStyle = {
+    pointerEvents: 'auto',
+    width: '800px', height: '600px',
+    backgroundColor: '#4a4036', // Коричневая база (как TilePanel)
+    backgroundImage: `
+      repeating-linear-gradient(45deg, #4a4036 0, #4a4036 2px, #3e352d 2px, #3e352d 4px)
+    `,
+    border: '4px solid #2d241b',
+    boxShadow: '0 30px 60px rgba(0,0,0,0.9)',
+    display: 'flex', flexDirection: 'column',
+    padding: '10px',
+    position: 'relative'
 };
+const screwStyle = { position: 'absolute', color: '#8c7b65', fontSize: '16px', userSelect: 'none', opacity: 0.7, zIndex: 3 };
 
-const containerWrapperStyle = {
-    position: 'absolute',
-    bottom: '110px',
-    right: '30px',
-    display: 'flex',
-    alignItems: 'flex-start',
-    zIndex: 60,
-    gap: '0' // Вкладки прижаты к панели
-};
+const headerContainerStyle = { display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 20px 10px 20px', borderBottom: '2px solid #2d241b' };
+const headerTitleStyle = { color: '#e3dac9', fontWeight: '900', fontSize: '24px', letterSpacing: '2px', fontFamily: "'Courier New', monospace", textShadow: '0 1px 2px rgba(0,0,0,0.8)' };
 
-const sideTabsContainerStyle = {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '8px',
-    paddingTop: '20px'
-};
-
-const getTabStyle = (isActive) => ({
-    width: '50px',
-    height: '50px',
-    // Белый цвет для активной, дерево для неактивной
-    backgroundColor: isActive ? '#FFFFFF' : '#4E342E',
-    backgroundImage: isActive ? 'none' : `url('/textures/wood_dark.jpg')`,
-    backgroundSize: 'cover',
-    color: isActive ? '#3E2723' : '#D7CCC8',
-    border: '2px solid #5D4037',
-    // Убираем правую границу у активной, чтобы сливалась
-    borderRight: isActive ? 'none' : '2px solid #5D4037',
-    borderRadius: '8px 0 0 8px',
-    cursor: 'pointer',
-    fontSize: '24px',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    transition: 'transform 0.2s',
-    // Сдвигаем активную немного вправо, чтобы перекрыть границу панели
-    transform: isActive ? 'translateX(2px)' : 'none',
-    boxShadow: isActive ? 'none' : '-2px 2px 5px rgba(0,0,0,0.3)',
-    zIndex: isActive ? 2 : 1
-});
-
-const panelContainerStyle = {
-  width: '700px',
-  height: '500px',
-
-  // БЕЛЫЙ ФОН
-  backgroundColor: '#FFFFFF',
-
-  // ДЕРЕВЯННАЯ РАМКА
-  border: '12px solid transparent',
-  borderImage: 'url("/textures/wood_dark.jpg") 30 round',
-
-  boxShadow: '0 15px 40px rgba(0,0,0,0.5)',
-  display: 'flex',
-  flexDirection: 'column',
-  overflow: 'hidden'
-};
-
-const headerStyle = {
-  backgroundColor: '#FFFFFF', // Белый хедер
-  color: '#3E2723',
-  padding: '10px 20px',
-  fontWeight: 'bold',
-  letterSpacing: '2px',
-  borderBottom: '2px solid #BCAAA4',
-  display: 'flex',
-  justifyContent: 'center',
-  alignItems: 'center',
-  fontSize: '18px'
-};
-
-const contentAreaStyle = {
-    flex: 1,
-    padding: '20px',
-    overflow: 'hidden',
-    position: 'relative',
-    backgroundColor: '#FFFFFF'
-};
-
-// --- СТИЛИ ИНВЕНТАРЯ ---
-const inventoryLayoutGrid = {
-    display: 'flex',
-    height: '100%',
-    gap: '15px'
-};
-
-const detailsPanelStyle = {
-  width: '220px',
-  backgroundColor: '#FAFAFA', // Очень светлый серый
-  borderRadius: '4px',
-  border: '1px solid #BCAAA4',
-  padding: '15px',
-  display: 'flex',
-  flexDirection: 'column',
-  alignItems: 'center',
-  textAlign: 'center',
-  color: '#3E2723'
-};
-
-const gridContainerStyle = {
-  flex: 1,
-  display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fill, minmax(60px, 1fr))',
-  gridAutoRows: '60px',
-  gap: '8px',
-  overflowY: 'auto',
-  paddingRight: '5px',
-  alignContent: 'start',
-  scrollbarWidth: 'thin',
-  scrollbarColor: '#8D6E63 transparent'
-};
-
-const slotStyle = {
-  border: '1px solid #BCAAA4',
-  borderRadius: '4px',
-  position: 'relative',
-  cursor: 'pointer',
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  transition: 'all 0.1s',
-  backgroundColor: '#FFFFFF'
-};
-
-const slotIconStyle = {
-  fontSize: '32px',
-  userSelect: 'none',
-  filter: 'drop-shadow(0 2px 2px rgba(0,0,0,0.1))'
-};
-
-const itemBigIconStyle = { fontSize: '72px', marginBottom: '10px', filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.1))' };
-const itemNameStyle = { margin: '5px 0', fontSize: '18px', color: '#3E2723', textTransform: 'uppercase', lineHeight: '1.2', fontWeight: 'bold' };
-const itemTypeStyle = { fontSize: '11px', color: '#795548', marginBottom: '15px', letterSpacing: '1px', borderBottom: '1px solid #BCAAA4', width: '100%', paddingBottom: '5px' };
-const statsContainerStyle = { width: '100%', marginBottom: '15px', fontSize: '13px', color: '#5D4037', background: '#F5F5F5', padding: '8px', borderRadius: '4px', border: '1px solid #EEEEEE' };
-const statRowStyle = { display: 'flex', justifyContent: 'space-between', marginBottom: '4px' };
-const itemDescStyle = { fontSize: '13px', lineHeight: '1.5', color: '#4E342E', flex: 1, textAlign: 'left', fontStyle: 'italic', marginBottom: '10px' };
-const useBtnStyle = { width: '100%', padding: '10px', marginTop: 'auto', backgroundColor: '#FFFFFF', color: '#3E2723', border: '1px solid #3E2723', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold', fontSize: '12px', transition: 'all 0.2s', boxShadow: '0 2px 4px rgba(0,0,0,0.1)', textTransform: 'uppercase', letterSpacing: '1px' };
-const emptyDetailsStyle = { color: '#BDBDBD', fontSize: '14px', fontStyle: 'italic', marginTop: '60%' };
-
-// --- СТИЛИ ПЕРСОНАЖА ---
-const characterTabStyle = {
-    display: 'flex',
-    height: '100%',
-    gap: '20px'
-};
-
-const charInfoBlockStyle = {
-    width: '200px',
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRight: '1px solid #E0E0E0',
-    paddingRight: '20px'
-};
-
-const avatarPlaceholderStyle = {
-    width: '120px',
-    height: '120px',
-    backgroundColor: '#F5F5F5',
+const closeBtnStyle = {
+    width: '40px', height: '40px',
+    background: 'radial-gradient(circle, #b71c1c 0%, #7f0000 100%)',
+    border: '2px solid #500000',
     borderRadius: '50%',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    fontSize: '60px',
-    border: '4px solid #E0E0E0'
+    color: '#fff', fontSize: '16px', fontWeight: 'bold',
+    cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+    boxShadow: '0 4px 5px rgba(0,0,0,0.5), inset 0 2px 2px rgba(255,255,255,0.2)'
 };
 
-const charStatTextStyle = {
-    fontSize: '14px',
-    color: '#5D4037',
-    margin: '2px 0'
-};
-
-const equipmentGridStyle = {
+const paperContentStyle = {
     flex: 1,
-    display: 'grid',
-    gridTemplateColumns: 'repeat(2, 1fr)',
-    gap: '15px',
-    alignContent: 'center'
+    backgroundColor: '#e3dac9', // Та же бумага, что и в TilePanel
+    backgroundImage: `linear-gradient(#cfc6b8 1px, transparent 1px), linear-gradient(90deg, #cfc6b8 1px, transparent 1px)`,
+    backgroundSize: '20px 20px',
+    boxShadow: 'inset 0 0 40px rgba(0,0,0,0.2), 0 0 10px rgba(0,0,0,0.3)',
+    border: '1px solid #b0a390',
+    marginTop: '10px',
+    display: 'flex', flexDirection: 'column',
+    position: 'relative', overflow: 'hidden'
 };
 
-const equipSlotStyle = {
-    height: '60px',
-    width: '60px',
-    backgroundColor: '#FAFAFA',
-    border: '2px dashed #BCAAA4',
-    borderRadius: '4px',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    fontSize: '24px',
-    margin: '0 auto'
+const folderStampStyle = {
+    position: 'absolute', top: 15, right: 20,
+    border: '3px solid #5d4037', color: '#5d4037',
+    padding: '5px 10px', fontSize: '12px', fontWeight: '900',
+    transform: 'rotate(-5deg)', opacity: 0.6,
+    pointerEvents: 'none'
 };
 
-const equipSlotLabelStyle = {
-    textAlign: 'center',
-    fontSize: '11px',
-    color: '#795548',
-    marginBottom: '2px'
-};
+const contentGridStyle = { display: 'flex', height: '100%', paddingTop: '50px' };
+const leftColStyle = { flex: 2, borderRight: '2px solid #b0a390', padding: '0 20px 20px 20px', overflowY: 'auto' };
+const rightColStyle = { flex: 1, padding: '0 20px 20px 20px', display: 'flex', flexDirection: 'column', alignItems: 'center' };
 
-// --- СТИЛИ НАВЫКОВ ---
-const skillsTabStyle = {
-    height: '100%',
-    display: 'flex',
-    flexDirection: 'column',
-    overflowY: 'auto'
-};
+const invListContainerStyle = { display: 'flex', flexDirection: 'column' };
+const invRowStyle = { display: 'flex', alignItems: 'center', padding: '10px', cursor: 'pointer', fontFamily: "'Courier New', monospace", transition: 'background 0.1s' };
+const qtyTagStyle = { border: '1px solid #5d4037', padding: '2px 6px', fontSize: '11px', color: '#5d4037', fontWeight: 'bold' };
 
-const skillsListStyle = {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '10px',
-    marginTop: '15px'
-};
+const skillRowStyle = { display: 'flex', alignItems: 'center', padding: '15px 0', borderBottom: '1px dashed #8c7b65', fontFamily: "'Courier New', monospace" };
+const progressBgStyle = { height: '8px', background: 'rgba(0,0,0,0.1)', border: '1px solid #8c7b65' };
+const progressFillStyle = { height: '100%', background: '#5d4037' };
 
-const skillRowStyle = {
-    display: 'flex',
-    alignItems: 'center',
-    backgroundColor: '#FAFAFA',
-    padding: '10px',
-    borderRadius: '6px',
-    border: '1px solid #E0E0E0'
-};
+const avatarBoxStyle = { width: '80px', height: '100px', border: '1px solid #5d4037', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '40px', background: 'rgba(0,0,0,0.05)' };
+const dividerStyle = { borderBottom: '2px double #5d4037', fontWeight: 'bold', color: '#5d4037', marginBottom: '10px', paddingBottom: '2px' };
 
-const skillIconStyle = {
-    fontSize: '24px',
-    marginRight: '15px',
-    width: '32px',
-    textAlign: 'center'
-};
-
-const progressBarContainerStyle = {
-    height: '8px',
-    backgroundColor: '#E0E0E0',
-    borderRadius: '4px',
-    overflow: 'hidden'
-};
-
-const progressBarFillStyle = {
-    height: '100%',
-    backgroundColor: '#66bb6a',
-    transition: 'width 0.3s'
-};
-
-// --- СТИЛИ НАСТРОЕК ---
-const settingsTabStyle = {
-    padding: '20px'
-};
-
-const inputStyle = {
-    padding: '10px',
-    border: '1px solid #BCAAA4',
-    borderRadius: '4px',
-    backgroundColor: '#fff',
-    fontSize: '14px',
-    color: '#3E2723',
-    outline: 'none'
-};
+const descHeaderStyle = { width: '100%', borderBottom: '2px solid #5d4037', textAlign: 'center', fontWeight: 'bold', marginBottom: '20px', color: '#5d4037' };
+const bigIconStyle = { fontSize: '60px', marginBottom: '10px', filter: 'grayscale(0.5) sepia(0.5)' };
+const itemTitleStyle = { fontWeight: 'bold', fontSize: '16px', textTransform: 'uppercase', textAlign: 'center', marginBottom: '5px', fontFamily: "'Courier New', monospace", color: '#2b221b' };
+const itemTypeStyle = { fontSize: '11px', color: '#665', marginBottom: '15px', fontFamily: "'Courier New', monospace'" };
+const itemDescBoxStyle = { padding: '10px', background: 'rgba(255,255,255,0.4)', border: '1px dashed #8c7b65', width: '100%', boxSizing: 'border-box', fontStyle: 'italic', fontSize: '12px', lineHeight: '1.4', marginBottom: 'auto', color: '#3e2723' };
+const actionButtonStyle = { width: '100%', padding: '12px', background: '#f0e6d2', color: '#3e2723', border: '1px solid #8c7b65', borderBottom: '3px solid #5d4037', fontWeight: 'bold', cursor: 'pointer', marginTop: '20px', fontFamily: "'Courier New', monospace", fontSize: '14px' };

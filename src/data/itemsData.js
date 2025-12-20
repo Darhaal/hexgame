@@ -1,9 +1,6 @@
 // Импорт категорий
-import { generalItems } from "./items/generalItems";
 import { fishItems } from "./items/fish";
-import { foodItems } from "./items/food";
-import { drinkItems } from "./items/drinks";
-import { fishingGear } from "./items/fishingGear";
+// import { fishingGear } from "./items/fishingGear"; // Заглушка механики рыбалки
 
 export const ITEM_TYPES = {
   FOOD: 'food',
@@ -18,11 +15,8 @@ export const ITEM_TYPES = {
 
 // Объединяем все массивы в один плоский список
 const ALL_ITEMS_LIST = [
-    ...generalItems,
     ...fishItems,
-    ...foodItems,
-    ...drinkItems,
-    ...fishingGear
+    // ...fishingGear // Заглушка
 ];
 
 // Создаем объект для быстрого доступа по ID: { "apple": { ...data }, ... }

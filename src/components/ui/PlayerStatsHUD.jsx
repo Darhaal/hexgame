@@ -5,38 +5,41 @@ export default function PlayerStatsHUD({ stats }) {
 
   return (
     <div style={containerStyle}>
-      <StatRow icon="🍎" value={stats.food} color="#66bb6a" label="Food" />
-      <StatRow icon="💧" value={stats.water} color="#42a5f5" label="Water" />
-      <StatRow icon="🛏️" value={stats.fatigue} color="#ffee58" label="Energy" />
+      <StatRow icon="🍖" value={stats.food} color="#e6a749" label="СЫТ" />
+      <StatRow icon="💧" value={stats.water} color="#4fc3f7" label="ВОДА" />
+      <StatRow icon="⚡" value={stats.fatigue} color="#aed581" label="ЭНРГ" />
     </div>
   );
 }
 
-function StatRow({ icon, value, color }) {
-  // Гарантируем числовое значение
+function StatRow({ icon, value, color, label }) {
   const numericValue = parseFloat(value) || 0;
-
   const isCritical = numericValue <= 30;
   const barColor = isCritical ? "#ef5350" : color;
-  // Ограничиваем проценты 0-100
   const widthPercent = Math.max(0, Math.min(100, numericValue));
 
   return (
     <div style={rowStyle}>
-      <div style={iconBoxStyle}>{icon}</div>
+      <div style={labelContainerStyle}>
+          <div style={iconBoxStyle}>{icon}</div>
+          <span style={labelTextStyle}>{label}</span>
+      </div>
+
       <div style={barContainerStyle}>
+        {/* Шкала с делениями */}
+        <div style={gridOverlayStyle}></div>
+
         <div style={barBackgroundStyle}>
             <div style={{
                 ...barFillStyle,
                 width: `${widthPercent}%`,
                 backgroundColor: barColor,
-                boxShadow: isCritical ? "0 0 5px #ef5350" : "none",
-                // Убрана анимация для мгновенного обновления без рывков
+                boxShadow: isCritical ? "0 0 8px #ef5350" : "none",
             }}></div>
         </div>
-        {/* Округляем текст для читаемости (показываем только целые числа) */}
-        <div style={textOverlayStyle}>{Math.floor(numericValue)} / 100</div>
       </div>
+
+      <div style={valueTextStyle}>{Math.floor(numericValue)}</div>
     </div>
   );
 }
@@ -46,60 +49,76 @@ function StatRow({ icon, value, color }) {
 const containerStyle = {
   display: 'flex',
   flexDirection: 'column',
-  gap: '8px',
+  gap: '6px',
   width: '100%'
 };
 
 const rowStyle = {
   display: 'flex',
   alignItems: 'center',
-  gap: '8px'
+  gap: '8px',
+  background: '#1a1e1c',
+  padding: '4px',
+  borderRadius: '2px',
+  border: '1px solid #333'
+};
+
+const labelContainerStyle = {
+    display: 'flex',
+    alignItems: 'center',
+    width: '50px',
+    justifyContent: 'space-between'
 };
 
 const iconBoxStyle = {
-  fontSize: '18px',
-  width: '24px',
-  textAlign: 'center',
+  fontSize: '14px',
   lineHeight: 1
+};
+
+const labelTextStyle = {
+    fontSize: '9px',
+    color: '#888',
+    fontFamily: 'monospace',
+    fontWeight: 'bold'
 };
 
 const barContainerStyle = {
     flex: 1,
     position: 'relative',
-    height: '18px',
+    height: '10px',
+    background: '#111',
+    borderRadius: '1px',
+    border: '1px solid #444',
+    overflow: 'hidden'
 };
 
-const barBackgroundStyle = {
-  width: '100%',
-  height: '100%',
-  background: '#e0e0e0', // Светло-серый слот (вдавленный)
-  border: '1px solid #bdc3c7',
-  borderRadius: '4px',
-  overflow: 'hidden',
-  position: 'absolute',
-  top: 0,
-  left: 0,
-  boxShadow: 'inset 0 1px 3px rgba(0,0,0,0.1)'
-};
-
-const barFillStyle = {
-  height: '100%',
-  // willChange убран, так как анимации больше нет
-};
-
-const textOverlayStyle = {
+const gridOverlayStyle = {
     position: 'absolute',
     top: 0,
     left: 0,
     width: '100%',
     height: '100%',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    fontSize: '11px',
-    fontWeight: 'bold',
-    color: '#333',
-    textShadow: '0 0 2px rgba(255,255,255,0.8)',
-    pointerEvents: 'none',
+    zIndex: 2,
+    backgroundImage: 'linear-gradient(90deg, transparent 19%, rgba(0,0,0,0.5) 20%)',
+    backgroundSize: '10% 100%', // Деления каждые 10%
+    pointerEvents: 'none'
+};
+
+const barBackgroundStyle = {
+  width: '100%',
+  height: '100%',
+};
+
+const barFillStyle = {
+  height: '100%',
+  transition: 'width 0.3s ease',
+  boxShadow: 'inset 0 2px 2px rgba(255,255,255,0.2), inset 0 -2px 2px rgba(0,0,0,0.2)' // Объем
+};
+
+const valueTextStyle = {
+    width: '25px',
+    textAlign: 'right',
+    fontSize: '10px',
+    color: '#eee',
     fontFamily: 'monospace'
 };

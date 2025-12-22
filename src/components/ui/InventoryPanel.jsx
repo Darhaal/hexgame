@@ -5,18 +5,18 @@ import { useState, useEffect, useRef } from "react";
 // --- ДАННЫЕ (РЫБАЛКА) ---
 const ITEMS_DB = {
   "rod_basic": { name: "Удочка (Бамбук)", type: "Снасти", weight: 0.5, icon: "🎣", description: "Простая поплавочная удочка. Надежная.", perishTime: 0 },
-  "worms": { name: "Черви", type: "Наживка", weight: 0.1, icon: "🪱", description: "Навозные. Рыба клюет.", perishTime: 1200 },
-  "bread": { name: "Хлеб", type: "Наживка", weight: 0.2, icon: "🍞", description: "Мякиш. Для мирной рыбы.", perishTime: 600 },
-  "vodka": { name: "Фляга", type: "Напиток", weight: 0.5, icon: "🍶", description: "Согревает и радует.", perishTime: 0 },
-  "knife": { name: "Нож перочинный", type: "Инструмент", weight: 0.1, icon: "🔪", description: "Для мелких работ.", perishTime: 0 },
-  "fish_perch": { name: "Окунь", type: "Улов", weight: 0.3, icon: "🐟", description: "Речной хищник.", perishTime: 120 },
+  "worms": { name: "Черви (Навозные)", type: "Наживка", weight: 0.1, icon: "🪱", description: "Свежие, активные. Лещ берет охотно.", perishTime: 1200 },
+  "bread": { name: "Хлебный мякиш", type: "Наживка", weight: 0.2, icon: "🍞", description: "Сдобренный анисом. Для карася.", perishTime: 600 },
+  "vodka": { name: "Фляга 'Заветная'", type: "Напиток", weight: 0.5, icon: "🍶", description: "Согревает душу и тело. НЗ.", perishTime: 0 },
+  "knife": { name: "Нож складной", type: "Инструмент", weight: 0.1, icon: "🔪", description: "Очистить рыбу, нарезать леску.", perishTime: 0 },
+  "fish_perch": { name: "Окунь речной", type: "Улов", weight: 0.3, icon: "🐟", description: "Хищник. Пойман на блесну.", perishTime: 120 },
 };
 
 const SKILLS_DB = {
-  "fishing": { name: "Рыбная ловля", icon: "🎣" },
-  "cooking": { name: "Кулинария", icon: "🍳" },
-  "survival": { name: "Выживание", icon: "🌲" },
-  "crafting": { name: "Мастерство", icon: "🔨" }
+  "fishing": { name: "Ловля поплавком", icon: "🎣" },
+  "cooking": { name: "Уха и копчение", icon: "🍳" },
+  "survival": { name: "Туризм", icon: "🌲" },
+  "crafting": { name: "Ремонт снастей", icon: "🔨" }
 };
 
 const getItemData = (id) => ITEMS_DB[id] || { name: "Предмет", type: "Разное", weight: 0, icon: "📦", description: "...", perishTime: 0 };
@@ -32,82 +32,106 @@ export default function InventoryPanel({
   const [activeTab, setActiveTab] = useState(initialTab);
   const [selectedSlotIndex, setSelectedSlotIndex] = useState(null);
 
-  // Состояния для размера окна и анимации
+  // Состояния для размера и позиции
   const [size, setSize] = useState({ width: 900, height: 650 });
-  const [isResizing, setIsResizing] = useState(false);
-  const [isVisible, setIsVisible] = useState(false);
-  // Состояние для анимации смены контента (перелистывание страниц)
-  const [contentOpacity, setContentOpacity] = useState(1);
+  const [position, setPosition] = useState({ x: 0, y: 0 }); // Смещение от центра
 
-  // --- ВОССТАНОВЛЕНИЕ РАЗМЕРА ---
+  // Состояния взаимодействия
+  const [isResizing, setIsResizing] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
+  const dragStartOffset = useRef({ x: 0, y: 0 });
+
+  // Анимация
+  const [isVisible, setIsVisible] = useState(false);
+  const [pageTurn, setPageTurn] = useState(0);
+
+  // --- ВОССТАНОВЛЕНИЕ СОСТОЯНИЯ ---
   useEffect(() => {
-    // Пытаемся восстановить сохраненный размер при загрузке
     try {
         const savedSize = localStorage.getItem('inventory_panel_size');
-        if (savedSize) {
-            setSize(JSON.parse(savedSize));
-        }
+        const savedPos = localStorage.getItem('inventory_panel_pos');
+        if (savedSize) setSize(JSON.parse(savedSize));
+        if (savedPos) setPosition(JSON.parse(savedPos));
     } catch (e) {
-        console.warn("Не удалось загрузить размер панели", e);
+        console.warn("Ошибка загрузки состояния инвентаря", e);
     }
 
-    // Небольшая задержка для корректного старта CSS-транзишна
     const timer = setTimeout(() => setIsVisible(true), 50);
     return () => clearTimeout(timer);
   }, []);
 
-  // --- СОХРАНЕНИЕ РАЗМЕРА ---
-  const saveSize = (newSize) => {
+  // --- СОХРАНЕНИЕ ---
+  const saveState = (newSize, newPos) => {
       try {
-          localStorage.setItem('inventory_panel_size', JSON.stringify(newSize));
-      } catch (e) {
-          console.warn("Не удалось сохранить размер панели", e);
-      }
+          if(newSize) localStorage.setItem('inventory_panel_size', JSON.stringify(newSize));
+          if(newPos) localStorage.setItem('inventory_panel_pos', JSON.stringify(newPos));
+      } catch (e) { console.warn(e); }
   };
 
   useEffect(() => {
-    // Эффект "перелистывания" при смене вкладки
-    setContentOpacity(0);
-    const timer = setTimeout(() => {
+    setPageTurn(-90);
+    const timer1 = setTimeout(() => {
         setActiveTab(initialTab);
-        setContentOpacity(1);
-    }, 150); // Быстрое затухание и появление
-    return () => clearTimeout(timer);
+        setPageTurn(0);
+    }, 150);
+    return () => clearTimeout(timer1);
   }, [initialTab]);
 
   const handleTabChange = (newTab) => {
       if (activeTab === newTab) return;
-      setContentOpacity(0);
+      setPageTurn(-90);
       setTimeout(() => {
           setActiveTab(newTab);
-          setContentOpacity(1);
-      }, 150);
+          setPageTurn(0);
+      }, 300);
   };
 
-  // --- ЛОГИКА ИЗМЕНЕНИЯ РАЗМЕРА ---
-  const handleMouseDown = (e) => {
+  // --- ОБРАБОТКА DRAG & RESIZE ---
+  const handleMouseDownHeader = (e) => {
+      if (e.target.tagName === 'BUTTON') return;
+      e.preventDefault();
+      setIsDragging(true);
+      dragStartOffset.current = {
+          x: e.clientX - position.x,
+          y: e.clientY - position.y
+      };
+  };
+
+  const handleMouseDownResize = (e) => {
     e.preventDefault();
+    e.stopPropagation();
     setIsResizing(true);
   };
 
   useEffect(() => {
     const handleMouseMove = (e) => {
+      if (isDragging) {
+          setPosition({
+              x: e.clientX - dragStartOffset.current.x,
+              y: e.clientY - dragStartOffset.current.y
+          });
+      }
+
       if (isResizing) {
+        const maxWidth = window.innerWidth - 40;
+        const maxHeight = window.innerHeight - 40;
+
         setSize(prev => ({
-          width: Math.max(600, prev.width + e.movementX),
-          height: Math.max(400, prev.height + e.movementY)
+          width: Math.min(maxWidth, Math.max(600, prev.width + e.movementX)),
+          height: Math.min(maxHeight, Math.max(400, prev.height + e.movementY))
         }));
       }
     };
 
     const handleMouseUp = () => {
-      if (isResizing) {
+      if (isDragging || isResizing) {
+          setIsDragging(false);
           setIsResizing(false);
-          saveSize(size); // Сохраняем размер при отпускании мыши
+          saveState(size, position);
       }
     };
 
-    if (isResizing) {
+    if (isDragging || isResizing) {
       window.addEventListener('mousemove', handleMouseMove);
       window.addEventListener('mouseup', handleMouseUp);
     }
@@ -116,11 +140,11 @@ export default function InventoryPanel({
       window.removeEventListener('mousemove', handleMouseMove);
       window.removeEventListener('mouseup', handleMouseUp);
     };
-  }, [isResizing, size]);
+  }, [isDragging, isResizing, size, position]);
 
   const handleClose = () => {
     setIsVisible(false);
-    setTimeout(onClose, 500); // Ждем завершения анимации
+    setTimeout(onClose, 500);
   };
 
   const selectedInstance = selectedSlotIndex !== null ? inventory[selectedSlotIndex] : null;
@@ -128,10 +152,10 @@ export default function InventoryPanel({
 
   const getTabTitle = () => {
       switch(activeTab) {
-          case 'inventory': return "ИНВЕНТАРНАЯ ВЕДОМОСТЬ";
-          case 'character': return "ЛИЧНОЕ ДЕЛО";
-          case 'skills': return "КВАЛИФИКАЦИЯ";
-          case 'journal': return "ПОЛЕВОЙ ЖУРНАЛ";
+          case 'inventory': return "ОПИСЬ СНАРЯЖЕНИЯ";
+          case 'character': return "РЫБОЛОВНЫЙ БИЛЕТ";
+          case 'skills': return "РАЗРЯДНАЯ КНИЖКА";
+          case 'journal': return "ДНЕВНИК НАБЛЮДЕНИЙ";
           default: return "МЕНЮ";
       }
   };
@@ -143,46 +167,45 @@ export default function InventoryPanel({
                 ...folderBodyStyle,
                 width: `${size.width}px`,
                 height: `${size.height}px`,
-
-                // --- ОБНОВЛЕННАЯ АНИМАЦИЯ (В КАРМАН/В УГОЛ) ---
-                // Точка трансформации - правый нижний угол (откуда достаем/куда убираем)
+                transform: `
+                    translate3d(${position.x}px, ${position.y}px, 0)
+                    ${isVisible
+                        ? 'scale(1) rotate(0deg) translate3d(0,0,0)'
+                        : 'scale(0.2) rotate(-15deg) translate3d(300px, 500px, 0)'
+                    }
+                `,
                 transformOrigin: 'bottom right',
-
-                transform: isVisible
-                    ? 'translate3d(0, 0, 0) scale(1) rotate(0deg)'
-                    // Уходит вправо-вниз, сильно уменьшается и поворачивается
-                    : 'translate3d(200px, 400px, 0) scale(0.2) rotate(-15deg)',
-
                 opacity: isVisible ? 1 : 0,
-
-                // Используем bezier для ощущения "тяжести" предмета при доставании
-                transition: isResizing
+                transition: (isDragging || isResizing)
                     ? 'none'
                     : 'transform 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.1), opacity 0.4s ease'
             }}
         >
-            {/* Тень для объема */}
             <div style={{
                 position: 'absolute', inset: 0,
-                boxShadow: isVisible ? '0 20px 50px rgba(0,0,0,0.5)' : 'none',
+                boxShadow: isVisible ? '0 25px 60px rgba(0,0,0,0.6)' : 'none',
                 pointerEvents: 'none',
-                transition: 'box-shadow 0.6s ease'
+                transition: 'box-shadow 0.6s ease',
+                borderRadius: '2px'
             }}></div>
 
-            {/* Декоративные болты */}
             <div style={{...boltStyle, top: 6, left: 6}}>+</div>
             <div style={{...boltStyle, top: 6, right: 6}}>+</div>
             <div style={{...boltStyle, bottom: 6, left: 6}}>+</div>
 
-            {/* Шапка (Корешок) */}
-            <div style={headerContainerStyle}>
-                <div style={{display:'flex', alignItems:'center', gap:'15px'}}>
-                    <span style={docNumberStyle}>№ 04-22/Б</span>
+            <div
+                style={{
+                    ...headerContainerStyle,
+                    cursor: isDragging ? 'grabbing' : 'grab'
+                }}
+                onMouseDown={handleMouseDownHeader}
+            >
+                <div style={{display:'flex', alignItems:'center', gap:'15px', pointerEvents: 'none'}}>
+                    <span style={docNumberStyle}>РЫБНАДЗОР № 5</span>
                     <div style={headerTitleStyle}>{getTabTitle()}</div>
                 </div>
 
-                <div style={{display:'flex', gap: '10px'}}>
-                     {/* Вкладки */}
+                <div style={{display:'flex', gap: '8px'}}>
                      {['inventory', 'character', 'skills', 'journal'].map(tab => (
                          <button
                             key={tab}
@@ -192,34 +215,34 @@ export default function InventoryPanel({
                                 backgroundColor: activeTab === tab ? '#c23b22' : '#3e352d',
                                 color: activeTab === tab ? '#fff' : '#8c7b65',
                                 borderBottom: activeTab === tab ? 'none' : '2px solid #2d241b',
-                                transform: activeTab === tab ? 'translateY(2px)' : 'translateY(0)', // Эффект нажатия
+                                transform: activeTab === tab ? 'translateY(4px)' : 'translateY(0)',
+                                opacity: activeTab === tab ? 1 : 0.8
                             }}
                          >
-                            {tab === 'inventory' && 'РЮКЗАК'}
-                            {tab === 'character' && 'ПРОФИЛЬ'}
-                            {tab === 'skills' && 'НАВЫКИ'}
-                            {tab === 'journal' && 'ЖУРНАЛ'}
+                            {tab === 'inventory' && 'СНАСТИ'}
+                            {tab === 'character' && 'БИЛЕТ'}
+                            {tab === 'skills' && 'ОПЫТ'}
+                            {tab === 'journal' && 'ЗАПИСИ'}
                          </button>
                      ))}
                 </div>
 
-                <button onClick={handleClose} style={closeBtnStyle} title="Закрыть папку">
+                <button onClick={handleClose} style={closeBtnStyle} title="Убрать в карман">
                     ✕
                 </button>
             </div>
 
-            {/* Бумажный контент с анимацией смены страниц */}
             <div style={{
                 ...paperContentStyle,
-                opacity: contentOpacity,
-                transform: `translateX(${contentOpacity === 1 ? '0' : '-10px'})`, // Легкий сдвиг при смене
-                transition: 'opacity 0.2s ease, transform 0.2s ease'
+                transform: `rotateX(${pageTurn}deg)`,
+                opacity: Math.max(0, 1 - Math.abs(pageTurn) / 60),
+                transformOrigin: 'top center',
+                transition: 'transform 0.3s ease-in-out, opacity 0.3s ease-in-out'
             }}>
 
-                {/* Внутренний грид */}
                 <div style={contentGridStyle}>
 
-                    {/* Левая колонка (Список) */}
+                    {/* Левая колонка (ФИКСИРОВАННАЯ ШИРИНА 60%) */}
                     <div style={leftColStyle}>
                         {activeTab === 'inventory' && (
                             <div style={listContainerStyle}>
@@ -232,17 +255,17 @@ export default function InventoryPanel({
                                             onClick={() => setSelectedSlotIndex(idx)}
                                             style={{
                                                 ...listItemStyle,
-                                                backgroundColor: isSelected ? 'rgba(93, 64, 55, 0.1)' : 'transparent',
+                                                backgroundColor: isSelected ? 'rgba(93, 64, 55, 0.15)' : 'transparent',
                                                 borderLeft: isSelected ? '4px solid #c23b22' : '4px solid transparent',
                                             }}
                                         >
-                                            <div style={{width: '30px', textAlign:'center', fontSize: '18px'}}>{data?.icon}</div>
-                                            <div style={{flex: 1, fontWeight: isSelected ? 'bold' : 'normal'}}>{data?.name || "Пустой слот"}</div>
+                                            <div style={{width: '30px', textAlign:'center', fontSize: '20px'}}>{data?.icon}</div>
+                                            <div style={{flex: 1, fontWeight: isSelected ? 'bold' : 'normal', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis'}}>{data?.name || "Пусто"}</div>
                                             {item && <div style={qtyTagStyle}>1 шт.</div>}
                                         </div>
                                     );
                                 }) : (
-                                    <div style={emptyStateStyle}>Имущество отсутствует.</div>
+                                    <div style={emptyStateStyle}>Рюкзак пуст. Пора копать червей.</div>
                                 )}
                             </div>
                         )}
@@ -258,7 +281,7 @@ export default function InventoryPanel({
                                             <div style={{flex: 1}}>
                                                 <div style={{display:'flex', justifyContent:'space-between', fontSize:'12px', marginBottom:'5px'}}>
                                                     <span style={{fontWeight:'bold'}}>{meta.name}</span>
-                                                    <span>КВЛ. {skill.level}</span>
+                                                    <span>РАЗРЯД {skill.level}</span>
                                                 </div>
                                                 <div style={progressBgStyle}>
                                                     <div style={{...progressFillStyle, width: `${skill.xp}%`}}></div>
@@ -273,38 +296,39 @@ export default function InventoryPanel({
                          {activeTab === 'character' && (
                             <div style={{padding: '20px'}}>
                                 <div style={{display:'flex', gap:'20px', alignItems:'flex-start', borderBottom:'1px dashed #8c7b65', paddingBottom:'20px', marginBottom:'20px'}}>
-                                    <div style={photoFrameStyle}>ФОТО</div>
+                                    <div style={photoFrameStyle}>ФОТО 3x4</div>
                                     <div>
                                         <div style={{fontSize:'20px', fontWeight:'900', color:'#2b221b', textTransform:'uppercase'}}>
-                                            {character.name || "НЕИЗВЕСТНЫЙ"}
+                                            {character.name || "РЫБАК И.И."}
                                         </div>
                                         <div style={{marginTop:'5px', color:'#5d4037', fontSize:'12px'}}>
-                                            Год рождения: 1986<br/>
-                                            Статус: Гражданский<br/>
-                                            Приписан: База "Восток"
+                                            Статус: Любитель<br/>
+                                            Общество: "Тихая Заводь"<br/>
+                                            Стаж: с 1986 года
                                         </div>
                                     </div>
-                                    <div style={stampStyle}>ДОПУЩЕН</div>
+                                    <div style={stampStyle}>ВЗНОСЫ УПЛАЧЕНЫ</div>
                                 </div>
                                 <div style={{fontSize:'12px', color:'#3e2723'}}>
-                                    <p>ОСОБЫЕ ПРИМЕТЫ: Отсутствуют.</p>
-                                    <p>МЕДИЦИНСКИЕ ПОКАЗАНИЯ: В норме.</p>
+                                    <p>ЛЮБИМАЯ СНАСТЬ: Поплавочная удочка.</p>
+                                    <p>РЕКОРДНЫЙ УЛОВ: Щука (3.5 кг).</p>
+                                    <p>МЕСТО ПРИПИСКИ: Лодочная станция №2.</p>
                                 </div>
                             </div>
                         )}
 
                         {activeTab === 'journal' && (
                             <div style={{padding: '15px', fontStyle: 'italic', color: '#3e2723'}}>
-                                <p style={{borderBottom:'1px solid #cfc6b8', paddingBottom:'5px', fontWeight:'bold'}}>// ПОСЛЕДНИЕ ЗАПИСИ</p>
-                                <p style={{marginTop:'10px'}}>12.05 — Прибыл в сектор. Оборудование в норме. Погода благоприятная.</p>
-                                <p style={{marginTop:'10px'}}>13.05 — Обнаружил следы стоянки. Костер старый.</p>
+                                <p style={{borderBottom:'1px solid #cfc6b8', paddingBottom:'5px', fontWeight:'bold'}}>// АРХИВ ЗАПИСЕЙ</p>
+                                <p style={{marginTop:'10px'}}>12.05 — Прибыл на вечернюю зорьку. Ветра нет. Комары лютуют.</p>
+                                <p style={{marginTop:'10px'}}>13.05 — Подкормил место жмыхом. Жду леща. Сосед справа вытащил карася с ладонь.</p>
                             </div>
                         )}
                     </div>
 
-                    {/* Правая колонка (Детали) */}
+                    {/* Правая колонка (ФИКСИРОВАННАЯ ШИРИНА 40%) */}
                     <div style={rightColStyle}>
-                         <div style={detailsHeaderStyle}>КАРТОЧКА ОБЪЕКТА</div>
+                         <div style={detailsHeaderStyle}>ИНФОРМАЦИЯ</div>
                          {selectedData ? (
                             <>
                                 <div style={itemPreviewContainerStyle}>
@@ -315,11 +339,11 @@ export default function InventoryPanel({
 
                                 <div style={propTableStyle}>
                                     <div style={propRowStyle}>
-                                        <span>Тип:</span>
+                                        <span>Категория:</span>
                                         <span style={{fontWeight:'bold'}}>{selectedData.type}</span>
                                     </div>
                                     <div style={propRowStyle}>
-                                        <span>Вес:</span>
+                                        <span>Масса:</span>
                                         <span style={{fontWeight:'bold'}}>{selectedData.weight} кг</span>
                                     </div>
                                 </div>
@@ -336,16 +360,15 @@ export default function InventoryPanel({
                             </>
                          ) : (
                              <div style={emptyDetailStyle}>
-                                 ВЫБЕРИТЕ ЭЛЕМЕНТ ИЗ СПИСКА ДЛЯ ПРОСМОТРА ИНФОРМАЦИИ
+                                 ВЫБЕРИТЕ ПРЕДМЕТ ДЛЯ ОСМОТРА
                              </div>
                          )}
                     </div>
                 </div>
             </div>
 
-            {/* Ручка для изменения размера (Resize Handle) */}
             <div
-                onMouseDown={handleMouseDown}
+                onMouseDown={handleMouseDownResize}
                 style={resizeHandleStyle}
                 title="Изменить размер"
             >
@@ -357,7 +380,7 @@ export default function InventoryPanel({
   );
 }
 
-// --- СТИЛИ (POST-SOVIET MINIMALISM / TILEPANEL MATCH) ---
+// --- СТИЛИ ---
 
 const overlayContainerStyle = {
     position: 'fixed',
@@ -367,19 +390,18 @@ const overlayContainerStyle = {
     alignItems: 'center',
     justifyContent: 'center',
     pointerEvents: 'none',
-    perspective: '1500px' // ВАЖНО: Добавляет 3D перспективу сцене
+    perspective: '1500px'
 };
 
 const folderBodyStyle = {
     pointerEvents: 'auto',
-    backgroundColor: "#4a4036", // Темно-коричневый (как TilePanel)
+    backgroundColor: "#4a4036",
     backgroundImage: `
         linear-gradient(to right, rgba(0,0,0,0.6) 0%, rgba(0,0,0,0) 5%, rgba(0,0,0,0) 95%, rgba(0,0,0,0.6) 100%),
         repeating-linear-gradient(45deg, #4a4036 0, #4a4036 2px, #3e352d 2px, #3e352d 4px)
     `,
     border: "4px solid #2d241b",
     borderTop: "2px solid #5d4037",
-    // Тень задается теперь внутри самого блока через boxShadow для большей производительности
     display: "flex",
     flexDirection: "column",
     padding: "12px",
@@ -388,8 +410,8 @@ const folderBodyStyle = {
     fontFamily: "'Courier New', monospace",
     minWidth: '600px',
     minHeight: '400px',
-    backfaceVisibility: 'hidden', // Скрывает заднюю часть при вращении
-    willChange: 'transform, opacity' // Оптимизация браузера
+    backfaceVisibility: 'hidden',
+    willChange: 'transform, opacity, width, height'
 };
 
 const boltStyle = {
@@ -408,7 +430,8 @@ const headerContainerStyle = {
     alignItems: 'center',
     marginBottom: '10px',
     padding: '0 5px',
-    height: '40px'
+    height: '40px',
+    userSelect: 'none'
 };
 
 const docNumberStyle = {
@@ -431,14 +454,15 @@ const headerTitleStyle = {
 const tabButtonStyle = {
     background: 'none',
     border: 'none',
-    fontSize: '11px',
+    fontSize: '10px',
     fontWeight: 'bold',
     cursor: 'pointer',
-    padding: '6px 12px',
+    padding: '8px 10px',
     borderRadius: '2px 2px 0 0',
-    transition: 'all 0.1s', // Быстрая реакция на ховер
+    transition: 'all 0.2s',
     fontFamily: "'Courier New', monospace",
-    letterSpacing: '1px'
+    letterSpacing: '1px',
+    pointerEvents: 'auto'
 };
 
 const closeBtnStyle = {
@@ -458,7 +482,6 @@ const closeBtnStyle = {
     marginLeft: '10px'
 };
 
-// Бумажный лист внутри (как в TilePanel)
 const paperContentStyle = {
     flex: 1,
     backgroundColor: "#e3dac9",
@@ -472,7 +495,8 @@ const paperContentStyle = {
     position: "relative",
     overflow: "hidden",
     display: 'flex',
-    flexDirection: 'column'
+    flexDirection: 'column',
+    perspective: '1000px'
 };
 
 const contentGridStyle = {
@@ -482,8 +506,10 @@ const contentGridStyle = {
     overflow: 'hidden'
 };
 
+// --- ФИКСАЦИЯ ШИРИНЫ КОЛОНОК ---
 const leftColStyle = {
-    flex: 2,
+    flex: '0 0 60%', // Жестко 60% ширины
+    maxWidth: '60%', // Не даем расти
     borderRight: '2px solid #b0a390',
     overflowY: 'auto',
     padding: '0',
@@ -493,19 +519,16 @@ const leftColStyle = {
 };
 
 const rightColStyle = {
-    flex: 1.2, // Чуть шире для карточки
+    flex: '1', // Занимает оставшееся место (40%)
     display: 'flex',
     flexDirection: 'column',
     padding: '15px',
-    backgroundColor: 'rgba(255,255,255,0.2)', // Эффект более светлой бумаги справа
-    borderLeft: '1px solid #fff'
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    borderLeft: '1px solid #fff',
+    overflow: 'hidden' // Чтобы не ломалось при ресайзе
 };
 
-// Стили списка
-const listContainerStyle = {
-    display: 'flex',
-    flexDirection: 'column'
-};
+const listContainerStyle = { display: 'flex', flexDirection: 'column' };
 
 const listItemStyle = {
     display: 'flex',
@@ -524,7 +547,8 @@ const qtyTagStyle = {
     border: '1px solid #5d4037',
     padding: '1px 5px',
     borderRadius: '2px',
-    fontWeight: 'bold'
+    fontWeight: 'bold',
+    marginLeft: 'auto' // Прижимаем к правому краю
 };
 
 const emptyStateStyle = {
@@ -535,7 +559,6 @@ const emptyStateStyle = {
     fontSize: '14px'
 };
 
-// Навыки
 const skillRowStyle = {
     display: 'flex',
     alignItems: 'center',
@@ -557,7 +580,6 @@ const progressFillStyle = {
     borderRadius: '1px'
 };
 
-// Карточка персонажа
 const photoFrameStyle = {
     width: '80px',
     height: '100px',
@@ -569,7 +591,8 @@ const photoFrameStyle = {
     fontWeight: 'bold',
     color: '#5d4037',
     backgroundColor: '#d7ccc0',
-    boxShadow: 'inset 0 0 10px rgba(0,0,0,0.1)'
+    boxShadow: 'inset 0 0 10px rgba(0,0,0,0.1)',
+    textAlign: 'center'
 };
 
 const stampStyle = {
@@ -584,7 +607,6 @@ const stampStyle = {
     letterSpacing: '2px'
 };
 
-// Детали справа
 const detailsHeaderStyle = {
     fontSize: '12px',
     color: '#8c7b65',
@@ -670,13 +692,12 @@ const emptyDetailStyle = {
     border: '2px dashed #cfc6b8'
 };
 
-// Уголок для ресайза
 const resizeHandleStyle = {
     position: 'absolute',
     bottom: '2px',
     right: '2px',
-    width: '20px',
-    height: '20px',
+    width: '24px',
+    height: '24px',
     cursor: 'se-resize',
     color: '#8c7b65',
     fontSize: '16px',

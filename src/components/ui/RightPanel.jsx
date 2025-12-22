@@ -3,30 +3,56 @@
 import React from 'react';
 import InfoPanel from './InfoPanel';
 
-export default function RightPanel({ gameTime, stats }) {
+// Теперь RightPanel "тупой" компонент - он просто рисует то, что ему передали сверху.
+// Вся логика расчета погоды (с учетом тайла) находится в GameUI.
+export default function RightPanel({ gameTime, stats, weather }) {
+
+  // Заглушка, если погода еще не загрузилась
+  const w = weather || { temp: 0, wind: 0, pressure: 760, humidity: 50, condition: 'clear' };
+
   return (
     <div style={containerStyle}>
-      {/* Показатели времени и состояния */}
-      <InfoPanel gameTimeMinutes={gameTime} stats={stats} />
+      {/* Передаем погоду дальше в InfoPanel для часов и иконки */}
+      <InfoPanel gameTimeMinutes={gameTime} stats={stats} weather={w} />
 
-      {/* Окружающая среда */}
       <div style={envPanelStyle}>
         <div style={headerStyle}>МЕТЕОСВОДКА</div>
 
-        <EnvRow icon="🌡️" label="ВОЗДУХ" value="+18°C" color="#ffb74d" />
-        <EnvRow icon="💨" label="ВЕТЕР" value="3 м/с" color="#90caf9" />
-        <EnvRow icon="🌊" label="ДАВЛЕНИЕ" value="760 мм" color="#a5d6a7" />
-        <EnvRow icon="💧" label="ВЛАЖНОСТЬ" value="45%" color="#b0bec5" />
+        <EnvRow
+            icon="🌡️"
+            label="ТЕМПЕРАТУРА"
+            value={`${w.temp > 0 ? '+' : ''}${w.temp}°C`}
+            color={w.temp > 0 ? "#ffb74d" : "#90caf9"}
+        />
+        <EnvRow
+            icon="💨"
+            label="ВЕТЕР"
+            value={`${w.wind} м/с`}
+            color={w.wind > 8 ? "#ef5350" : "#90caf9"}
+        />
+        <EnvRow
+            icon="🌊"
+            label="ДАВЛЕНИЕ"
+            value={`${w.pressure} мм`}
+            color={w.pressure < 745 || w.pressure > 775 ? "#e57373" : "#a5d6a7"}
+        />
+        <EnvRow
+            icon="💧"
+            label="ВЛАЖНОСТЬ"
+            value={`${w.humidity}%`}
+            color={w.humidity > 80 ? "#4fc3f7" : "#b0bec5"}
+        />
       </div>
 
-      {/* Статус персонажа */}
       <div style={statusPanelStyle}>
         <div style={headerStyle}>САМОЧУВСТВИЕ</div>
         <div style={statusRowStyle}>
-            <span style={{color: '#8bc34a'}}>• Бодр и полон сил</span>
+            {stats.fatigue < 30 ? <span style={{color: '#ef5350'}}>• Усталость</span> : <span style={{color: '#8bc34a'}}>• Бодр</span>}
         </div>
         <div style={statusRowStyle}>
-            <span style={{color: '#90a4ae'}}>• Спокоен</span>
+            {w.temp < -10 ? <span style={{color: '#64b5f6'}}>• Холодно</span> :
+             w.temp > 30 ? <span style={{color: '#ffb74d'}}>• Жарко</span> :
+             <span style={{color: '#90a4ae'}}>• Комфорт</span>}
         </div>
       </div>
     </div>
@@ -45,58 +71,9 @@ function EnvRow({ icon, label, value, color }) {
     )
 }
 
-// --- СТИЛИ ---
-
-const containerStyle = {
-    position: 'absolute',
-    top: 20,
-    right: 20,
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '15px', // Отступ между блоками
-    width: '260px',
-    pointerEvents: 'auto',
-    zIndex: 60
-};
-
-const envPanelStyle = {
-    backgroundColor: '#2F3532',
-    border: '2px solid #1a1e1c',
-    borderRadius: '4px',
-    padding: '10px',
-    boxShadow: '0 4px 10px rgba(0,0,0,0.5)',
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '6px'
-};
-
-const statusPanelStyle = {
-    ...envPanelStyle,
-    minHeight: '80px'
-};
-
-const headerStyle = {
-    fontSize: '10px',
-    color: '#5d6d65',
-    borderBottom: '1px solid #3e4441',
-    paddingBottom: '2px',
-    marginBottom: '4px',
-    letterSpacing: '1px',
-    fontWeight: 'bold'
-};
-
-const rowStyle = {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    background: '#222624',
-    padding: '4px 8px',
-    borderRadius: '2px',
-    border: '1px solid #333'
-};
-
-const statusRowStyle = {
-    fontSize: '11px',
-    fontFamily: 'monospace',
-    padding: '2px 0'
-};
+const containerStyle = { position: 'absolute', top: 20, right: 20, display: 'flex', flexDirection: 'column', gap: '15px', width: '260px', pointerEvents: 'auto', zIndex: 60 };
+const envPanelStyle = { backgroundColor: '#2F3532', border: '2px solid #1a1e1c', borderRadius: '4px', padding: '10px', boxShadow: '0 4px 10px rgba(0,0,0,0.5)', display: 'flex', flexDirection: 'column', gap: '6px' };
+const statusPanelStyle = { ...envPanelStyle, minHeight: '60px' };
+const headerStyle = { fontSize: '10px', color: '#5d6d65', borderBottom: '1px solid #3e4441', paddingBottom: '2px', marginBottom: '4px', letterSpacing: '1px', fontWeight: 'bold' };
+const rowStyle = { display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#222624', padding: '4px 8px', borderRadius: '2px', border: '1px solid #333' };
+const statusRowStyle = { fontSize: '11px', fontFamily: 'monospace', padding: '2px 0' };

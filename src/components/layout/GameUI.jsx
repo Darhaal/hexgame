@@ -1,61 +1,38 @@
 "use client";
 
-import { useState } from "react";
-// ВАЖНО: В рамках Single-File Mandate и специфики среды,
-// если эти компоненты не экспортируются глобально, мы должны либо
-// импортировать их корректно (если они существуют), либо встроить заглушки/код.
-// Но в данном контексте, скорее всего, проблема в путях.
-// Попробуем использовать пути, которые точно должны работать, или
-// если компоненты были определены в предыдущих шагах, они могут быть недоступны как модули.
-//
-// ОДНАКО, чтобы ГАРАНТИРОВАТЬ работу в этом "сборном" файле,
-// и учитывая, что в предыдущем шаге я генерировал их как отдельные файлы,
-// я сейчас обновлю GameUI, предполагая, что они доступны.
-//
-// Если среда не видит файлы, я встрою критические части или упрощу импорты.
-// Но правильный путь для src/components/layout/GameUI.jsx к src/components/ui/... это ../ui/...
-//
-// ЕСЛИ ошибка persist, значит файлы физически не созданы в этой сессии компиляции.
-// Я ВСТРОЮ ИХ СЮДА ДЛЯ НАДЕЖНОСТИ, так как пользователь просил "починить layout".
+import { useState, useEffect } from "react";
+import { useGame } from "../../context/GameContext";
+import { getWeather } from "../../engine/weather/WeatherSystem";
 
-// --- ВСТРАИВАЕМ КОМПОНЕНТЫ UI ДЛЯ ГАРАНТИИ РАБОТЫ ---
-// (В реальном проекте это должны быть отдельные файлы)
-
-import { useGame } from "../../context/GameContext"; // Этот импорт тоже может падать, если контекст не найден.
-import { REAL_SEC_TO_GAME_MIN } from "../../engine/time/timeModels";
-
-// -----------------------------------------------------------------------------
-// ВРЕМЕННЫЕ ЗАГЛУШКИ / ВСТРОЕННЫЕ КОМПОНЕНТЫ (Если импорты не работают)
-// В реальной среде эти файлы должны лежать в src/components/ui/
-// -----------------------------------------------------------------------------
-
-/* --- TilePanel (Копия из предыдущего шага) --- */
 import TilePanel from "../ui/TilePanel";
-/* --- RightPanel (Копия из предыдущего шага) --- */
 import RightPanel from "../ui/RightPanel";
-/* --- BottomBar (Копия из предыдущего шага) --- */
 import BottomBar from "../ui/BottomBar";
-/* --- InventoryPanel (Копия из предыдущего шага) --- */
 import InventoryPanel from "../ui/InventoryPanel";
-/* --- DevConsole (Копия из предыдущего шага) --- */
 import DevConsole from "../ui/DevConsole";
-
+import WeatherOverlay from "../../engine/weather/WeatherOverlay"; // <-- Новый путь
 
 export default function GameUI({ children }) {
   const {
-    // Data
     gameTime, stats, inventory, skills, character,
     activeTile, isMoving, isTilePanelOpen, isLoaded,
-    // Actions
     addTime, modifyStat, onResetWorld, changeVehicle, spawnItem,
     useItem, renameCharacter, upgradeSkill, setIsTilePanelOpen,
     stopMovementAction
   } = useGame();
 
-  // Состояние модального окна (открыто ли и какая вкладка)
   const [modalState, setModalState] = useState({ isOpen: false, tab: 'inventory' });
+  const [currentWeather, setCurrentWeather] = useState({
+      condition: 'clear', temp: 20, wind: 0, pressure: 760, humidity: 50,
+      lightLevel: 1, intensity: 0, dateStr: '', timeStr: ''
+  });
 
-  if (!isLoaded) return <div style={{ background: "#111", minHeight: "100vh", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center" }}>Загрузка мира...</div>;
+  useEffect(() => {
+      const tileForWeather = isMoving ? null : activeTile;
+      const w = getWeather(gameTime, tileForWeather);
+      setCurrentWeather(w);
+  }, [gameTime, activeTile, isMoving]);
+
+  if (!isLoaded) return <div style={{ background: "#111", minHeight: "100vh", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center" }}>LOADING...</div>;
 
   const onSleep = () => {
      if (activeTile && activeTile.q === 0 && activeTile.r === 0) {
@@ -69,34 +46,25 @@ export default function GameUI({ children }) {
 
   const handleContextMenu = (e) => {
     e.preventDefault();
-    if (isMoving && stopMovementAction) {
-        stopMovementAction();
-    }
+    if (isMoving && stopMovementAction) stopMovementAction();
   };
 
-  const openModal = (tab) => {
-      setModalState({ isOpen: true, tab });
-  };
-
-  const closeModal = () => {
-      setModalState({ ...modalState, isOpen: false });
-  };
+  const openModal = (tab) => setModalState({ isOpen: true, tab });
+  const closeModal = () => setModalState({ ...modalState, isOpen: false });
 
   return (
     <div
       onContextMenu={handleContextMenu}
       style={{ position: "relative", minHeight: "100vh", background: "#111", overflow: "hidden", userSelect: "none" }}
     >
-
-      {/* 1. КАРТА (Фон) */}
       <div style={{ position: "absolute", top: 0, left: 0, zIndex: 0, width: "100%", height: "100%" }}>
         {children}
       </div>
 
-      {/* 2. UI СЛОЙ */}
+      <WeatherOverlay weather={currentWeather} />
+
       <div style={{ position: "relative", zIndex: 10, width: "100%", height: "100vh", pointerEvents: "none" }}>
 
-        {/* ЛЕВАЯ ПАНЕЛЬ (Информация о тайле) */}
         <div style={{ position: 'absolute', top: 0, left: 0, height: '100%', pointerEvents: "none" }}>
             <TilePanel
                 tile={isMoving ? null : activeTile}
@@ -109,10 +77,8 @@ export default function GameUI({ children }) {
             />
         </div>
 
-        {/* ПРАВАЯ ПАНЕЛЬ (Часы и Статус) - теперь содержит в себе InfoPanel */}
-        <RightPanel gameTime={gameTime} stats={stats} />
+        <RightPanel gameTime={gameTime} stats={stats} weather={currentWeather} />
 
-        {/* НИЖНЯЯ ПАНЕЛЬ (Меню) */}
         <div style={{ width: '100%', position: 'absolute', bottom: 0, pointerEvents: "none", display: 'flex', justifyContent: 'center' }}>
              <BottomBar
                 onOpenInventory={() => openModal('inventory')}
@@ -122,7 +88,6 @@ export default function GameUI({ children }) {
              />
         </div>
 
-        {/* МОДАЛЬНОЕ ОКНО (Инвентарь и прочее) */}
         {modalState.isOpen && (
              <div style={{ pointerEvents: "auto" }}>
                 <InventoryPanel
@@ -139,15 +104,15 @@ export default function GameUI({ children }) {
              </div>
         )}
 
-        {/* КОНСОЛЬ РАЗРАБОТЧИКА */}
         <div style={{ position: 'absolute', top: 0, left: 0, pointerEvents: "auto" }}>
             <DevConsole
                 onAddSteps={addTime}
                 onAddStat={modifyStat}
                 onReset={onResetWorld}
                 onSetVehicle={changeVehicle}
-                onToggleDebug={() => console.log("Time flow:", REAL_SEC_TO_GAME_MIN)}
+                onToggleDebug={() => {}}
                 onSpawnItem={spawnItem}
+                gameTime={gameTime}
             />
         </div>
 

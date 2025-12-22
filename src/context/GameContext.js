@@ -4,12 +4,23 @@ import React, { createContext, useContext, useEffect, useRef, useState } from "r
 import { useGameTime } from "../hooks/useGameTime";
 import { usePlayer } from "../hooks/usePlayer";
 import { useMovement } from "../hooks/useMovement";
-import { START_TIME } from "../engine/player/playerState";
+import { START_TIME, loadPlayerState } from "../engine/player/playerState"; // Добавили loadPlayerState
 
 const GameContext = createContext(null);
 
 export function GameProvider({ children }) {
   const { gameTime, gameTimeRef, updateTime, addTime, setTime } = useGameTime();
+
+  // --- ВАЖНОЕ ИСПРАВЛЕНИЕ: Загрузка времени при старте ---
+  useEffect(() => {
+    // Пытаемся загрузить состояние сразу при монтировании
+    const loaded = loadPlayerState();
+    if (loaded && loaded.gameTime) {
+        console.log("Loading saved time:", loaded.gameTime);
+        setTime(loaded.gameTime);
+    }
+  }, [setTime]);
+  // -------------------------------------------------------
 
   const player = usePlayer(gameTimeRef);
   const {
@@ -24,14 +35,9 @@ export function GameProvider({ children }) {
     update: updateMovement, onTileClick: handleMoveClick, stop: stopMovementAction, movementRef
   } = movement;
 
-  // По умолчанию открыта
   const [isTilePanelOpen, setIsTilePanelOpen] = useState(true);
 
-  // Обертка для клика по тайлу
   const onTileClick = (tile, isShiftKey) => {
-    // Мы НЕ меняем состояние панели здесь.
-    // Если она была открыта - останется открытой (но уедет при движении).
-    // Если была закрыта - останется закрытой.
     handleMoveClick(tile, isShiftKey);
   };
 
@@ -39,10 +45,14 @@ export function GameProvider({ children }) {
     resetPlayer();
     setTime(START_TIME);
     stopMovementAction();
-    if (typeof window !== "undefined") window.location.reload();
+    // Чистим localStorage
+    if (typeof window !== "undefined") {
+        localStorage.clear();
+        window.location.reload();
+    }
   };
 
-  const lastSaveTimeRef = useRef(0);
+  // Автосохранение при закрытии/сворачивании
   useEffect(() => {
     const handleUnload = () => save(movementRef.current.queue, movementRef.current.activeStep);
     const handleVisibilityChange = () => {

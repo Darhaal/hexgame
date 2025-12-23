@@ -6,15 +6,21 @@ import PaperClock from './PaperClock';
 import PlayerStatsHUD from './PlayerStatsHUD';
 
 export default function InfoPanel({ gameTimeMinutes, stats, style, weather }) {
+  // Используем переданную погоду или считаем сами
   const w = weather || getWeather(gameTimeMinutes);
 
   const getWeatherIcon = (cond) => {
       switch(cond) {
           case 'clear': return '☀️';
+          case 'partly_cloudy': return '🌤️';
           case 'cloudy': return '☁️';
           case 'rain': return '🌧️';
+          case 'drizzle': return '🌦️';
+          case 'heavy_rain': return '⛈️';
           case 'snow': return '❄️';
-          case 'storm': return '⛈️';
+          case 'storm': return '🌩️';
+          case 'fog': return '🌫️';
+          case 'windy': return '🌬️';
           default: return '☀️';
       }
   };
@@ -42,9 +48,11 @@ export default function InfoPanel({ gameTimeMinutes, stats, style, weather }) {
 
         {/* Часы */}
         <div style={clockFrameStyle}>
-          {/* Передаем часы и минуты из погоды для синхронизации */}
-          <PaperClock hours={w.hours} minutes={w.minutes} dateStr={w.dateStr} />
-          <div style={digitalBoxStyle}>{w.timeStr}</div>
+          {/* ПЕРЕДАЕМ ПРАВИЛЬНЫЕ ПРОПСЫ */}
+          <PaperClock
+             gameTimeMinutes={gameTimeMinutes}
+             dateStr={w.dateStr}
+          />
         </div>
 
         <div style={separatorStyle}></div>
@@ -67,4 +75,3 @@ const clockFrameStyle = { width: '100%', display: 'flex', flexDirection: 'column
 const statsWrapperStyle = { width: '100%', marginTop: '5px' };
 const labelStyle = { fontSize: '10px', color: '#8c9c95', fontFamily: 'monospace', letterSpacing: '2px', marginBottom: '4px', width: '100%', textAlign: 'left', borderBottom: '1px solid #333' };
 const separatorStyle = { width: '100%', height: '2px', background: '#111', borderBottom: '1px solid #333', margin: '5px 0' };
-const digitalBoxStyle = { marginTop: 4, background: '#4a5d43', color: '#111', padding: '2px 10px', borderRadius: '2px', fontFamily: 'monospace', fontSize: '16px', fontWeight: 'bold', border: '2px inset #3a4b3d', zIndex: 40, textShadow: '0 0 2px rgba(0,0,0,0.2)', letterSpacing: '2px' };

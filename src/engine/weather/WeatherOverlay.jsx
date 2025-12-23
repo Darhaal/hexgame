@@ -70,10 +70,12 @@ export default function WeatherOverlay({ weather, gameTime }) {
         let targetCount = 0;
 
         if (condition.includes('rain') || condition === 'storm') {
-            targetCount = Math.floor(intensity * 1200);
+            // УВЕЛИЧЕНО КОЛИЧЕСТВО: Было 1200 -> Стало 2000 для более плотного дождя
+            targetCount = Math.floor(intensity * 2000);
             spawnType = 'rain';
         } else if (condition === 'snow') {
-            targetCount = Math.floor(intensity * 800);
+            // УВЕЛИЧЕНО КОЛИЧЕСТВО: Было 800 -> Стало 1500 для густого снега
+            targetCount = Math.floor(intensity * 1500);
             spawnType = 'snow';
         } else if (condition === 'windy' || (wind > 8 && condition !== 'clear')) {
             targetCount = Math.floor(wind * 5);
@@ -111,9 +113,6 @@ export default function WeatherOverlay({ weather, gameTime }) {
         // Отрисовка частиц (В одном цикле, но с проверкой типа каждой частицы)
         // Это позволяет снегу и дождю существовать одновременно при смене погоды
         const len = particles.current.length;
-
-        // Чтобы менять стили (fill/stroke), нам нужно группировать или переключать контекст.
-        // Для оптимизации будем просто переключать стили внутри цикла, это нормально для <2000 частиц.
 
         ctx.beginPath(); // Начинаем путь для линий (дождь)
 
@@ -261,5 +260,6 @@ export default function WeatherOverlay({ weather, gameTime }) {
     return () => cancelAnimationFrame(rafRef.current);
   }, [weather, gameTime]);
 
-  return <canvas ref={canvasRef} style={{ position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 6 }} />;
+  // zIndex: 5 - возвращаем как просили
+  return <canvas ref={canvasRef} style={{ position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 5 }} />;
 }

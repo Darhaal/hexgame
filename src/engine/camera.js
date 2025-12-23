@@ -1,5 +1,14 @@
 // src/engine/camera.js
 
+// Вспомогательная функция для уведомления системы погоды (и других)
+function dispatchCameraChange(camera) {
+  if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('camera-change', {
+          detail: { x: camera.offsetX, y: camera.offsetY }
+      }));
+  }
+}
+
 export function createCamera(bounds, tileSize) {
   const marginX = 2 * Math.sqrt(3) * tileSize;
   const marginY = 2 * 1.5 * tileSize;
@@ -15,7 +24,7 @@ export function createCamera(bounds, tileSize) {
     offsetX: 0,
     offsetY: 0,
     dragging: false,
-    hasMoved: false, // <--- НОВОЕ: запоминаем, двигали ли мы камеру
+    hasMoved: false,
     dragStartX: 0,
     dragStartY: 0,
     expanded,
@@ -40,6 +49,9 @@ export function centerCamera(camera, canvas) {
   const cy = (minY + maxY) / 2;
   camera.offsetX = canvas.width / 2 - cx * camera.scale;
   camera.offsetY = canvas.height / 2 - cy * camera.scale;
+
+  // Уведомляем о смене позиции
+  dispatchCameraChange(camera);
 }
 
 export function clampCamera(camera, canvas) {
@@ -51,23 +63,30 @@ export function clampCamera(camera, canvas) {
   const w = right - left;
   const h = bottom - top;
 
+  let changed = false;
+
   if (w <= canvas.width) {
     camera.offsetX = (canvas.width - w) / 2 - left;
+    changed = true;
   } else {
     const min = canvas.width - right;
     const max = -left;
-    if (camera.offsetX < min) camera.offsetX = min;
-    if (camera.offsetX > max) camera.offsetX = max;
+    if (camera.offsetX < min) { camera.offsetX = min; changed = true; }
+    if (camera.offsetX > max) { camera.offsetX = max; changed = true; }
   }
 
   if (h <= canvas.height) {
     camera.offsetY = (canvas.height - h) / 2 - top;
+    changed = true;
   } else {
     const min = canvas.height - bottom;
     const max = -top;
-    if (camera.offsetY < min) camera.offsetY = min;
-    if (camera.offsetY > max) camera.offsetY = max;
+    if (camera.offsetY < min) { camera.offsetY = min; changed = true; }
+    if (camera.offsetY > max) { camera.offsetY = max; changed = true; }
   }
+
+  // Если clamp реально подвинул камеру (или если это вызов внутри драга,
+  // где позиция уже поменялась до clamp), событие отправится из вызывающей функции.
 }
 
 export function resetCamera(camera, canvas) {
@@ -76,6 +95,8 @@ export function resetCamera(camera, canvas) {
   camera.scale = minS;
   centerCamera(camera, canvas);
   clampCamera(camera, canvas);
+
+  dispatchCameraChange(camera);
 }
 
 /* Обработчики событий */
@@ -98,13 +119,15 @@ function onWheel(e, camera, canvas, draw) {
   camera.offsetX = mx - wx * next;
   camera.offsetY = my - wy * next;
   clampCamera(camera, canvas);
+
+  dispatchCameraChange(camera); // <--- Событие
   draw();
 }
 
 function pointerDown(e, camera, canvas) {
   canvas.setPointerCapture?.(e.pointerId);
   camera.dragging = true;
-  camera.hasMoved = false; // <--- Сброс флага при нажатии
+  camera.hasMoved = false;
   camera.dragStartX = e.clientX - camera.offsetX;
   camera.dragStartY = e.clientY - camera.offsetY;
 }
@@ -112,11 +135,9 @@ function pointerDown(e, camera, canvas) {
 function pointerMove(e, camera, canvas, draw) {
   if (!camera.dragging) return;
 
-  // Новая позиция
   const newOffsetX = e.clientX - camera.dragStartX;
   const newOffsetY = e.clientY - camera.dragStartY;
 
-  // <--- ПРОВЕРКА: Если сдвинули хоть чуть-чуть, считаем это драгом, а не кликом
   if (Math.abs(newOffsetX - camera.offsetX) > 2 || Math.abs(newOffsetY - camera.offsetY) > 2) {
       camera.hasMoved = true;
   }
@@ -124,6 +145,8 @@ function pointerMove(e, camera, canvas, draw) {
   camera.offsetX = newOffsetX;
   camera.offsetY = newOffsetY;
   clampCamera(camera, canvas);
+
+  dispatchCameraChange(camera); // <--- Событие (самое важное для плавности)
   draw();
 }
 
@@ -138,11 +161,11 @@ export function initCameraEvents(canvas, camera, draw) {
   const u = (e) => pointerUp(e, camera, canvas);
   const w = (e) => onWheel(e, camera, canvas, draw);
 
-  // Исправление прыжка камеры: просто ресайз и ограничение границ
   const r = () => {
     resizeCanvas(canvas);
     clampCamera(camera, canvas);
     draw();
+    dispatchCameraChange(camera); // При ресайзе тоже обновляем
   };
 
   canvas.addEventListener("pointerdown", d);

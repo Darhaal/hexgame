@@ -1,36 +1,52 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useGame } from "../../context/GameContext";
 import { getWeather } from "../../engine/weather/WeatherSystem";
+// Импортируем оптимизированную карту (mapDataMap)
+import mapData, { mapDataMap } from "../../data/mapData";
 
 import TilePanel from "../ui/TilePanel";
 import RightPanel from "../ui/RightPanel";
 import BottomBar from "../ui/BottomBar";
 import InventoryPanel from "../ui/InventoryPanel";
 import DevConsole from "../ui/DevConsole";
-import WeatherOverlay from "../../engine/weather/WeatherOverlay"; // <-- Новый путь
+import WeatherOverlay from "../../engine/weather/WeatherOverlay";
 
 export default function GameUI({ children }) {
   const {
     gameTime, stats, inventory, skills, character,
-    activeTile, isMoving, isTilePanelOpen, isLoaded,
+    activeTile, // Тайл, на который кликнули (для инфо-панели)
+    playerPosRef, // Позиция игрока
+    isMoving, isTilePanelOpen, isLoaded,
     addTime, modifyStat, onResetWorld, changeVehicle, spawnItem,
     useItem, renameCharacter, upgradeSkill, setIsTilePanelOpen,
-    stopMovementAction
+    stopMovementAction, save
   } = useGame();
 
   const [modalState, setModalState] = useState({ isOpen: false, tab: 'inventory' });
+
+  // Начальное состояние погоды
   const [currentWeather, setCurrentWeather] = useState({
       condition: 'clear', temp: 20, wind: 0, pressure: 760, humidity: 50,
-      lightLevel: 1, intensity: 0, dateStr: '', timeStr: ''
+      lightLevel: 1, intensity: 0, dateStr: '', timeStr: '',
+      sunrise: 360, sunset: 1260
   });
 
+  // ОПТИМИЗАЦИЯ: Мгновенный поиск тайла через Hash Map
+  const playerTile = useMemo(() => {
+      if (!isLoaded || !playerPosRef.current) return null;
+      const q = Math.round(playerPosRef.current.q);
+      const r = Math.round(playerPosRef.current.r);
+      // Быстрый доступ вместо mapData.find(...)
+      return mapDataMap[`${q},${r}`] || null;
+  }, [playerPosRef.current?.q, playerPosRef.current?.r, isLoaded]);
+
   useEffect(() => {
-      const tileForWeather = isMoving ? null : activeTile;
+      const tileForWeather = playerTile;
       const w = getWeather(gameTime, tileForWeather);
       setCurrentWeather(w);
-  }, [gameTime, activeTile, isMoving]);
+  }, [gameTime, playerTile]);
 
   if (!isLoaded) return <div style={{ background: "#111", minHeight: "100vh", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center" }}>LOADING...</div>;
 
@@ -61,7 +77,8 @@ export default function GameUI({ children }) {
         {children}
       </div>
 
-      <WeatherOverlay weather={currentWeather} />
+      {/* Передаем gameTime для расчета позиции солнца в оверлее */}
+      <WeatherOverlay weather={currentWeather} gameTime={gameTime} />
 
       <div style={{ position: "relative", zIndex: 10, width: "100%", height: "100vh", pointerEvents: "none" }}>
 
@@ -110,9 +127,9 @@ export default function GameUI({ children }) {
                 onAddStat={modifyStat}
                 onReset={onResetWorld}
                 onSetVehicle={changeVehicle}
-                onToggleDebug={() => {}}
                 onSpawnItem={spawnItem}
                 gameTime={gameTime}
+                onSave={save}
             />
         </div>
 

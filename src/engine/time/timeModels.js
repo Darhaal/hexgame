@@ -2,12 +2,9 @@
 export const REAL_SEC_TO_GAME_MIN = 1;
 export const GAME_DAY_MINUTES = 24 * 60; // 1440
 
-// --- КАЛЕНДАРЬ ---
-// Старт: 25 Января 2005 года.
+// --- КАЛЕНДАРЬ (Старт 2005) ---
 export const START_YEAR = 2005;
-
-// Смещение ТОЛЬКО дней (24 полных дня прошло с начала года).
-// Время суток (08:00) будет задаваться через START_TIME в playerState.
+// Смещение на 25 января (24 полных дня прошло)
 export const START_DATE_OFFSET = 24 * GAME_DAY_MINUTES;
 
 export const MONTHS = [
@@ -27,14 +24,16 @@ export const MONTHS = [
 
 export const ANIMATION_SPEED = 10.0;
 
+// Стоимость движения (в минутах)
 export const TIME_COSTS = {
   default: 10,
-  forest: 30,
+  forest: 25,
   field: 15,
   road: 5,
   water: Infinity
 };
 
+// Високосный год
 export function isLeapYear(year) {
     return (year % 4 === 0 && year % 100 !== 0) || (year % 400 === 0);
 }

@@ -429,18 +429,15 @@ const rawMapData = [
   { q: -4, r: 9,  name: "Острова Днепра", type: TILE_TYPES.island },
 ];
 
+const fullMapData = rawMapData || [];
+
 // --- ИТОГОВАЯ СБОРКА ДАННЫХ ---
-const mapData = rawMapData.map(tile => {
-  // 1. Превращаем тип-объект в тип-строку (если нужно)
+const mapData = (typeof rawMapData !== 'undefined' ? rawMapData : []).map(tile => {
   const typeId = (tile.type && typeof tile.type === 'object') ? tile.type.id : tile.type;
-
   let variant = null;
-
-  // 2. Генерируем номер картинки (1-10) для леса и поля
   if (typeId === 'forest' || typeId === 'field') {
       variant = (Math.abs(tile.q * 13 + tile.r * 7) % 5) + 1;
   }
-
   return {
     ...tile,
     type: typeId,
@@ -449,3 +446,11 @@ const mapData = rawMapData.map(tile => {
 });
 
 export default mapData;
+
+// === ГЛАВНОЕ ИЗМЕНЕНИЕ ДЛЯ ОПТИМИЗАЦИИ ===
+// Создаем объект для мгновенного поиска по координатам "q,r"
+// Сложность поиска падает с O(N) до O(1)
+export const mapDataMap = mapData.reduce((acc, tile) => {
+    acc[`${tile.q},${tile.r}`] = tile;
+    return acc;
+}, {});

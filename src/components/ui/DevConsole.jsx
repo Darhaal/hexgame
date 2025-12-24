@@ -7,16 +7,15 @@ import { findNextWeatherOccurrence } from "../../engine/weather/WeatherSystem";
 export default function DevConsole({
     onAddSteps, onReset, onToggleDebug, onSetVehicle, onAddStat, onSpawnItem,
     gameTime, onSave,
-    weather
+    weather,
+    onUpdateStats // [UPDATE] Получаем функцию обновления статов
 }) {
   const [isOpen, setIsOpen] = useState(false);
   const [activeTab, setActiveTab] = useState('weather');
 
-  // Состояния поиска
   const [isSearching, setIsSearching] = useState(false);
-  const [preferredTime, setPreferredTime] = useState('any'); // 'any', 'day', 'night'
+  const [preferredTime, setPreferredTime] = useState('any');
 
-  // Заглушка для предметов (так как файл itemsData недоступен)
   const allItems = [
       { id: 'apple', name: 'Яблоко', type: 'food', icon: '🍎' },
       { id: 'water_flask', name: 'Фляга', type: 'food', icon: '💧' },
@@ -34,22 +33,27 @@ export default function DevConsole({
       return { day: days + 1, hours, minutes: mins, timeString: `${hours.toString().padStart(2,'0')}:${mins.toString().padStart(2,'0')}` };
   };
 
-  const addTime = (min) => onAddSteps(min);
+  // [UPDATE] Универсальная функция добавления времени
+  const addTime = (min) => {
+      onAddSteps(min); // Двигаем время
 
-  // --- НОВАЯ ЛОГИКА: ПЕРЕМОТКА ВРЕМЕНИ К ПОГОДЕ ---
+      // Если передана функция обновления статов, вызываем её
+      if (min > 0 && onUpdateStats) {
+          onUpdateStats(min);
+      }
+  };
+
   const handleJumpToWeather = (targetType) => {
       if (isSearching) return;
       setIsSearching(true);
 
-      // Используем setTimeout, чтобы UI успел обновиться и показать "Ищем..."
       setTimeout(() => {
-          // Ищем, когда наступит такая погода (до 1 года вперед)
           const targetTime = findNextWeatherOccurrence(gameTime, targetType, preferredTime);
 
           if (targetTime) {
               const diff = targetTime - gameTime;
               if (diff > 0) {
-                  onAddSteps(diff); // Перематываем
+                  addTime(diff); // Использует логику с обновлением статов
               }
           } else {
               const timeText = preferredTime === 'any' ? '' : (preferredTime === 'day' ? ' (Днем)' : ' (Ночью)');
@@ -102,11 +106,11 @@ export default function DevConsole({
                         </div>
                         <div style={{display: 'flex', justifyContent: 'space-between'}}>
                             <span>Температура:</span>
-                            <span style={{color: weatherInfo.temp > 0 ? '#ffb74d' : '#90caf9'}}>{weatherInfo.temp}°C</span>
+                            <span style={{color: weatherInfo.temp > 0 ? '#ffb74d' : '#90caf9'}}>{Math.round(weatherInfo.temp)}°C</span>
                         </div>
                         <div style={{display: 'flex', justifyContent: 'space-between'}}>
                             <span>Ветер:</span>
-                            <span style={{color: weatherInfo.wind > 8 ? '#ef5350' : '#ccc'}}>{weatherInfo.wind} м/с</span>
+                            <span style={{color: weatherInfo.wind > 8 ? '#ef5350' : '#ccc'}}>{Number(weatherInfo.wind).toFixed(1)} м/с</span>
                         </div>
                         <div style={{display: 'flex', justifyContent: 'space-between'}}>
                             <span>Свет:</span>
@@ -116,7 +120,6 @@ export default function DevConsole({
 
                     <div style={labelStyle}>НАЙТИ И ПЕРЕМОТАТЬ (AUTO JUMP)</div>
 
-                    {/* ФИЛЬТР ВРЕМЕНИ СУТОК */}
                     <div style={{display:'flex', gap:'5px', marginBottom:'10px'}}>
                         <button onClick={() => setPreferredTime('any')} style={getTimeBtnStyle(preferredTime === 'any')}>ВСЕ</button>
                         <button onClick={() => setPreferredTime('day')} style={getTimeBtnStyle(preferredTime === 'day')}>☀️ ДЕНЬ</button>
@@ -177,7 +180,6 @@ export default function DevConsole({
                 </div>
             )}
 
-            {/* Остальные табы без изменений */}
             {activeTab === 'stats' && (
                 <div style={colStyle}>
                     <div style={gridStyle}>
@@ -213,7 +215,6 @@ const TabButton = ({ label, id, active, onClick }) => (
 const CmdButton = ({ label, onClick, color='#ccc', id, style }) => (
     <button id={id} onClick={onClick} style={{background: '#222', border: '1px solid #444', color: color, padding: '12px', cursor: 'pointer', fontSize:'11px', borderRadius: '3px', fontWeight:'bold', textTransform:'uppercase', ...style}}>{label}</button>
 );
-// Стиль для кнопок времени (День/Ночь)
 const getTimeBtnStyle = (isActive) => ({
     flex: 1,
     background: isActive ? '#0288d1' : '#222',

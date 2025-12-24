@@ -5,23 +5,16 @@ export const INITIAL_STATS = {
 };
 
 // Скорости падения (ед/мин)
-// Уменьшено до 0.02.
-// При скорости x10: 1 ед. падает за 5 реальных секунд.
-// При скорости x1: 1 ед. падает за 50 реальных секунд.
+// Теперь параметры падают линейно и предсказуемо от общего времени.
 const RATES = {
-  foodWater: {
-    normal: 0.1,
-    critical: 0.05
-  },
-  // Усталость: чуть медленнее еды
-  fatigue: {
-    normal: 0.05,
-    critical: 0.02
-  }
+  food: 0.04,    // ~41 игровой час до 0 (медленнее всего)
+  water: 0.08,   // ~20 игровых часов до 0
+  fatigue: 0.07  // ~23 игровых часа до 0
 };
 
 /**
  * Рассчитывает новые показатели на основе прошедшего времени.
+ * Используется простая линейная зависимость от deltaMinutes (общего времени).
  */
 export function calculateStatsDecay(stats, deltaMinutes) {
   // Защита от некорректной дельты времени
@@ -29,40 +22,11 @@ export function calculateStatsDecay(stats, deltaMinutes) {
 
   const newStats = { ...stats };
 
-  // Функция расчета для одного параметра
-  const decay = (val, rateNorm, rateCrit) => {
-    let remainingTime = deltaMinutes;
-    let current = val;
-
-    while (remainingTime > 0 && current > 0) {
-      const isCritical = current <= 30;
-      const rate = isCritical ? rateCrit : rateNorm;
-      const limit = isCritical ? 0 : 30;
-
-      // Сколько времени нужно, чтобы достичь границы текущей зоны
-      const distToLimit = current - limit;
-      // Если rate = 0, то timeToLimit бесконечность
-      const timeToLimit = rate > 0 ? distToLimit / rate : Infinity;
-
-      if (remainingTime <= timeToLimit) {
-        // Успеваем потратить всё время в текущей зоне
-        current -= remainingTime * rate;
-        remainingTime = 0;
-      } else {
-        // Доходим до границы, переключаем зону и тратим остаток времени
-        current = limit;
-        remainingTime -= timeToLimit;
-
-        // Защита от зацикливания на границе
-        if (current <= 0) remainingTime = 0;
-      }
-    }
-    return Math.max(0, current);
-  };
-
-  newStats.food = decay(newStats.food, RATES.foodWater.normal, RATES.foodWater.critical);
-  newStats.water = decay(newStats.water, RATES.foodWater.normal, RATES.foodWater.critical);
-  newStats.fatigue = decay(newStats.fatigue, RATES.fatigue.normal, RATES.fatigue.critical);
+  // Линейное падение: Stats -= Time * Rate
+  // Убрана логика "критических зон", теперь параметры зависят только от времени.
+  newStats.food = Math.max(0, newStats.food - deltaMinutes * RATES.food);
+  newStats.water = Math.max(0, newStats.water - deltaMinutes * RATES.water);
+  newStats.fatigue = Math.max(0, newStats.fatigue - deltaMinutes * RATES.fatigue);
 
   return newStats;
 }

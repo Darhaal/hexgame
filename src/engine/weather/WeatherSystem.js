@@ -55,7 +55,6 @@ export function findNextWeatherOccurrence(currentMinutes, targetType, timeOfDay 
         // 2. Проверка типа погоды
         let match = false;
 
-        // Группировка для удобства
         if (targetType === 'clear' && w.condition === 'clear') match = true;
         else if (targetType === 'partly_cloudy' && w.condition === 'partly_cloudy') match = true;
         else if (targetType === 'overcast' && w.condition === 'overcast') match = true;
@@ -108,6 +107,8 @@ export function getWeather(totalMinutes, tile = null) {
         if (['village', 'base'].includes(tile.type)) wind *= 0.6;
         if (['river', 'lake', 'great_river'].includes(tile.type)) wind *= 1.4;
     }
+
+    // Предварительное округление
     wind = Math.max(0, parseFloat(wind.toFixed(1)));
 
     // 3. ОБЛАЧНОСТЬ
@@ -202,8 +203,6 @@ export function getWeather(totalMinutes, tile = null) {
     // 3. Грозы (Весна-Лето-Ранняя Осень)
     if (mIdx >= 3 && mIdx <= 8 && temp > 12 && humidity > 60 && fbm(totalMinutes / 5000) > 0.75) {
         condition = "storm";
-        // [FIX] ГЛАВНОЕ ИСПРАВЛЕНИЕ: Если сработала "сезонная гроза",
-        // но базовая интенсивность была низкой (0), принудительно ставим дождь.
         if (intensity < 0.8) intensity = 0.8 + Math.random() * 0.2;
     }
 
@@ -217,6 +216,7 @@ export function getWeather(totalMinutes, tile = null) {
         isFoggy = true;
         condition = 'fog';
         fogDensity = (humidity - 90) / 10;
+        // Здесь ветер модифицировался и создавал дробную часть
         wind = Math.max(0.4, wind * 0.2);
     }
     // Дымка (Mist)
@@ -251,6 +251,9 @@ export function getWeather(totalMinutes, tile = null) {
     if (condition === 'mist') lightLevel *= 0.85;
 
     lightLevel = Math.max(0.15, lightLevel);
+
+    // [FIX] Финальное округление ветра перед возвратом (защита от wind * 0.2)
+    wind = parseFloat(wind.toFixed(1));
 
     return {
         condition, temp, wind, humidity, pressure, intensity,

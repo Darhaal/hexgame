@@ -6,6 +6,7 @@ import { drawScene } from "../../engine/draw/drawScene";
 import mapData from "../../data/mapData";
 import { axialToPixel } from "../../engine/hex/hexUtils";
 import { initAssets } from "../../engine/assets/AssetLoader";
+import { useGame } from "../../context/GameContext";
 
 function useCanvasDrawLoop(performDraw) {
     const requestRef = useRef();
@@ -27,31 +28,30 @@ export default function HexCanvas({ playerPosRef, reachableRef, path, onTileClic
   const [assetsLoaded, setAssetsLoaded] = useState(false);
   const TILE_SIZE = 100;
 
-  // 1. Загрузка ассетов при маунте
+  const { isLocationOpen } = useGame();
+
   useEffect(() => {
       initAssets().then(() => {
           setAssetsLoaded(true);
       });
   }, []);
 
-  const ensureCanvasSize = (canvas, camera) => {
-    const cssW = Math.floor(canvas.clientWidth || window.innerWidth);
-    const cssH = Math.floor(canvas.clientHeight || window.innerHeight);
-    if (canvas.width !== cssW || canvas.height !== cssH) {
-      resizeCanvas(canvas);
-      if (camera) clampCamera(camera, canvas);
-      return true;
-    }
-    return false;
-  };
-
-  const performDraw = useCallback(() => {
-    if (!assetsLoaded) return; // Не рисуем, пока не загрузились
+  // --- ВАЖНО: Используем ref для функции отрисовки ---
+  // Это позволяет не пересоздавать обработчики событий камеры при изменении пропсов (времени, позиции)
+  const performDrawCallback = useCallback(() => {
+    if (!assetsLoaded) return;
     const canvas = canvasRef.current;
     const camera = cameraRef.current;
     if (!canvas || !camera) return;
 
-    ensureCanvasSize(canvas, camera);
+    // Ресайз внутри drawloop, если нужно
+    const cssW = Math.floor(canvas.clientWidth || window.innerWidth);
+    const cssH = Math.floor(canvas.clientHeight || window.innerHeight);
+    if (canvas.width !== cssW || canvas.height !== cssH) {
+      resizeCanvas(canvas);
+      clampCamera(camera, canvas);
+    }
+
     drawScene({
       canvas,
       camera,
@@ -64,18 +64,19 @@ export default function HexCanvas({ playerPosRef, reachableRef, path, onTileClic
     });
   }, [playerPosRef, reachableRef, path, TILE_SIZE, gameTime, assetsLoaded]);
 
-  // Запускаем цикл отрисовки
-  useCanvasDrawLoop(performDraw);
+  // Сохраняем актуальную функцию в ref
+  const performDrawRef = useRef(performDrawCallback);
+  useEffect(() => { performDrawRef.current = performDrawCallback; }, [performDrawCallback]);
 
-  // Инициализация камеры и событий (только когда канвас готов)
+  // Запуск лупа
+  useCanvasDrawLoop(performDrawCallback);
+
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
     if (!cameraRef.current) {
       let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
-
-      // Увеличиваем маржин, чтобы учесть декоративные рамки (drawBorder)
       const BOUNDS_MARGIN = TILE_SIZE * 3;
 
       for (const t of mapData) {
@@ -86,7 +87,6 @@ export default function HexCanvas({ playerPosRef, reachableRef, path, onTileClic
         maxY = Math.max(maxY, p.y);
       }
 
-      // Применяем маржин к границам
       const bounds = {
           minX: minX - BOUNDS_MARGIN,
           maxX: maxX + BOUNDS_MARGIN,
@@ -98,15 +98,27 @@ export default function HexCanvas({ playerPosRef, reachableRef, path, onTileClic
       resetCamera(cameraRef.current, canvas);
     }
 
-    const cleanupCameraEvents = initCameraEvents(canvas, cameraRef.current, performDraw);
+    // Обновляем флаг блокировки ввода
+    if (cameraRef.current) {
+        cameraRef.current.disableInput = isLocationOpen;
+    }
+
+    // Прокси для вызова отрисовки из событий камеры
+    const drawProxy = () => {
+        if (performDrawRef.current) performDrawRef.current();
+    };
+
+    // Инициализируем события ТОЛЬКО при изменении флага isLocationOpen
+    // (или при первом маунте), но НЕ при каждом тике таймера.
+    const cleanupCameraEvents = initCameraEvents(canvas, cameraRef.current, drawProxy, isLocationOpen);
 
     const onClick = (e) => {
       const camera = cameraRef.current;
-      // Если драгали карту - это не клик по тайлу
       if (camera.hasMoved) {
         camera.hasMoved = false;
         return;
       }
+      if (camera.disableInput) return;
 
       const rect = canvas.getBoundingClientRect();
       const mx = e.clientX - rect.left;
@@ -120,7 +132,6 @@ export default function HexCanvas({ playerPosRef, reachableRef, path, onTileClic
       for (const t of mapData) {
         const p = axialToPixel(t.q, t.r, TILE_SIZE);
         const d = Math.hypot(p.x - worldX, p.y - worldY);
-        // Проверка радиуса клика (чуть меньше размера тайла)
         if (d < TILE_SIZE * 0.9 && d < bestDist) {
             bestDist = d;
             best = t;
@@ -130,14 +141,15 @@ export default function HexCanvas({ playerPosRef, reachableRef, path, onTileClic
     };
 
     canvas.addEventListener("click", onClick);
-    window.addEventListener("resize", performDraw);
+    // Ресайз обрабатывается внутри drawLoop/initCameraEvents, но добавим для надежности
+    // window.addEventListener("resize", drawProxy);
 
     return () => {
       canvas.removeEventListener("click", onClick);
-      window.removeEventListener("resize", performDraw);
+      // window.removeEventListener("resize", drawProxy);
       if (cleanupCameraEvents) cleanupCameraEvents();
     };
-  }, [onTileClicked, performDraw]);
+  }, [onTileClicked, isLocationOpen]); // Убрали зависимости gameTime/path/performDrawCallback
 
   if (!assetsLoaded) {
       return (
@@ -159,7 +171,7 @@ export default function HexCanvas({ playerPosRef, reachableRef, path, onTileClic
         height: "100vh",
         display: "block",
         touchAction: "none",
-        background: "#ffffff", // Белый фон для канваса тоже
+        background: "#ffffff",
       }}
     />
   );

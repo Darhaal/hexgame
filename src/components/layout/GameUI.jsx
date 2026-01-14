@@ -3,44 +3,43 @@
 import { useState, useEffect, useMemo } from "react";
 import { useGame } from "../../context/GameContext";
 import { getWeather } from "../../engine/weather/WeatherSystem";
-// Импортируем оптимизированную карту (mapDataMap)
 import mapData, { mapDataMap } from "../../data/mapData";
 
-import TilePanel from "../ui/TilePanel";
+import LocationPanel from "../ui/LocationPanel";
+import InventoryWindow from "../ui/InventoryWindow";
+import CharacterWindow from "../ui/CharacterWindow";
+import SkillsWindow from "../ui/SkillsWindow";
+
 import RightPanel from "../ui/RightPanel";
 import BottomBar from "../ui/BottomBar";
-import InventoryPanel from "../ui/InventoryPanel";
 import DevConsole from "../ui/DevConsole";
 import WeatherOverlay from "../../engine/weather/WeatherOverlay";
-// [UPDATE] Импорт новой системы сна
 import SleepSystem from "../../engine/player/SleepSystem";
 
 export default function GameUI({ children }) {
   const {
-    gameTime, stats, inventory, skills, character,
-    activeTile, // Тайл, на который кликнули (для инфо-панели)
-    playerPosRef, // Позиция игрока
-    isMoving, isTilePanelOpen, isLoaded,
-    addTime, modifyStat, updateStats, onResetWorld, changeVehicle, spawnItem,
-    useItem, renameCharacter, upgradeSkill, setIsTilePanelOpen,
-    stopMovementAction, save
+    gameTime, stats, isLoaded, playerPosRef, isMoving,
+    addTime, modifyStat, updateStats, onResetWorld, changeVehicle,
+    spawnItem, spawnWorldObject, // [NEW]
+    save,
+    isLocationOpen, setIsLocationOpen
   } = useGame();
 
-  const [modalState, setModalState] = useState({ isOpen: false, tab: 'inventory' });
+  const [activeWindow, setActiveWindow] = useState(null);
 
-  // [UPDATE] Состояние для системы сна
-  const [sleepState, setSleepState] = useState({
-      active: false,
-      config: { minutes: 0, fatigueRegen: 0 }
-  });
+  useEffect(() => {
+      if (isLocationOpen) setActiveWindow(null);
+  }, [isLocationOpen]);
 
-  // Начальное состояние погоды
-  const [currentWeather, setCurrentWeather] = useState({
-      condition: 'clear', temp: 20, wind: 0, pressure: 760, humidity: 50,
-      lightLevel: 1, intensity: 0, dateStr: '', timeStr: '',
-      sunrise: 360, sunset: 1260
-  });
+  const openWindow = (id) => {
+      setIsLocationOpen(false);
+      setActiveWindow(id);
+  };
 
+  const closeWindow = () => setActiveWindow(null);
+
+  const [sleepState, setSleepState] = useState({ active: false, config: { minutes: 0, fatigueRegen: 0 } });
+  const [currentWeather, setCurrentWeather] = useState({ condition: 'clear', temp: 20, wind: 0, pressure: 760, humidity: 50 });
   const playerTile = useMemo(() => {
       if (!isLoaded || !playerPosRef.current) return null;
       const q = Math.round(playerPosRef.current.q);
@@ -56,93 +55,36 @@ export default function GameUI({ children }) {
 
   if (!isLoaded) return <div style={{ background: "#111", minHeight: "100vh", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center" }}>LOADING...</div>;
 
-  // [UPDATE] Новая логика запуска сна
-  const onSleep = () => {
-     let minutes = 60;
-     let fatigueRegen = 15;
-
-     // Если спим дома (0,0) - полноценный сон 8 часов
-     if (activeTile && activeTile.q === 0 && activeTile.r === 0) {
-          minutes = 480;
-          fatigueRegen = 100;
-      }
-
-      // Запускаем анимацию и логику через SleepSystem
-      setSleepState({
-          active: true,
-          config: { minutes, fatigueRegen }
-      });
-  };
-
-  const handleContextMenu = (e) => {
-    e.preventDefault();
-    if (isMoving && stopMovementAction) stopMovementAction();
-  };
-
-  const openModal = (tab) => setModalState({ isOpen: true, tab });
-  const closeModal = () => setModalState({ ...modalState, isOpen: false });
+  const handleContextMenu = (e) => { e.preventDefault(); };
 
   return (
-    <div
-      onContextMenu={handleContextMenu}
-      style={{ position: "relative", minHeight: "100vh", background: "#111", overflow: "hidden", userSelect: "none" }}
-    >
-      <div style={{ position: "absolute", top: 0, left: 0, zIndex: 0, width: "100%", height: "100%" }}>
-        {children}
-      </div>
+    <div onContextMenu={handleContextMenu} style={{ position: "relative", minHeight: "100vh", background: "#111", overflow: "hidden", userSelect: "none" }}>
+      <div style={{ position: "absolute", top: 0, left: 0, zIndex: 0, width: "100%", height: "100%" }}>{children}</div>
 
       <WeatherOverlay weather={currentWeather} gameTime={gameTime} />
-
-      {/* [UPDATE] Компонент Сна (поверх всего) */}
-      <SleepSystem
-          active={sleepState.active}
-          config={sleepState.config}
-          onComplete={() => setSleepState(prev => ({ ...prev, active: false }))}
-          addTime={addTime}
-          updateStats={updateStats}
-          modifyStat={modifyStat}
-      />
+      <SleepSystem active={sleepState.active} config={sleepState.config} onComplete={() => setSleepState(prev => ({ ...prev, active: false }))} addTime={addTime} updateStats={updateStats} modifyStat={modifyStat} />
 
       <div style={{ position: "relative", zIndex: 10, width: "100%", height: "100vh", pointerEvents: "none" }}>
 
-        <div style={{ position: 'absolute', top: 0, left: 0, height: '100%', pointerEvents: "none" }}>
-            <TilePanel
-                tile={isMoving ? null : activeTile}
-                isMoving={isMoving}
-                isOpen={isTilePanelOpen}
-                onToggle={() => setIsTilePanelOpen(!isTilePanelOpen)}
-                onSleep={onSleep}
-                onEat={() => modifyStat('food', 50)}
-                onDrink={() => modifyStat('water', 50)}
-            />
+        <div style={{ pointerEvents: "auto" }}>
+            <LocationPanel />
         </div>
 
         <RightPanel gameTime={gameTime} stats={stats} weather={currentWeather} />
 
         <div style={{ width: '100%', position: 'absolute', bottom: 0, pointerEvents: "none", display: 'flex', justifyContent: 'center' }}>
              <BottomBar
-                onOpenInventory={() => openModal('inventory')}
-                onOpenCharacter={() => openModal('character')}
-                onOpenSkills={() => openModal('skills')}
-                onOpenJournal={() => openModal('journal')}
+                onOpenInventory={() => openWindow('inventory')}
+                onOpenCharacter={() => openWindow('character')}
+                onOpenSkills={() => openWindow('skills')}
+                onClose={closeWindow}
+                activeWindow={activeWindow || (isLocationOpen ? 'location' : null)}
              />
         </div>
 
-        {modalState.isOpen && (
-             <div style={{ pointerEvents: "auto" }}>
-                <InventoryPanel
-                    inventory={inventory}
-                    skills={skills}
-                    character={character}
-                    onUseItem={useItem}
-                    gameTime={gameTime}
-                    onRenameCharacter={renameCharacter}
-                    onUpgradeSkill={upgradeSkill}
-                    initialTab={modalState.tab}
-                    onClose={closeModal}
-                />
-             </div>
-        )}
+        {activeWindow === 'inventory' && <div style={{pointerEvents:"auto"}}><InventoryWindow onClose={closeWindow}/></div>}
+        {activeWindow === 'character' && <div style={{pointerEvents:"auto"}}><CharacterWindow onClose={closeWindow}/></div>}
+        {activeWindow === 'skills' && <div style={{pointerEvents:"auto"}}><SkillsWindow onClose={closeWindow}/></div>}
 
         <div style={{ position: 'absolute', top: 0, left: 0, pointerEvents: "auto" }}>
             <DevConsole
@@ -152,6 +94,7 @@ export default function GameUI({ children }) {
                 onReset={onResetWorld}
                 onSetVehicle={changeVehicle}
                 onSpawnItem={spawnItem}
+                onSpawnWorldObject={spawnWorldObject} // [NEW] Передаем функцию
                 gameTime={gameTime}
                 onSave={save}
             />

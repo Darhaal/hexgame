@@ -9,6 +9,7 @@ import LocationPanel from "../ui/LocationPanel";
 import InventoryWindow from "../ui/InventoryWindow";
 import CharacterWindow from "../ui/CharacterWindow";
 import SkillsWindow from "../ui/SkillsWindow";
+import VehicleAssemblyWindow from "../ui/VehicleAssemblyWindow"; // [NEW]
 
 import RightPanel from "../ui/RightPanel";
 import BottomBar from "../ui/BottomBar";
@@ -18,11 +19,11 @@ import SleepSystem from "../../engine/player/SleepSystem";
 
 export default function GameUI({ children }) {
   const {
-    gameTime, stats, isLoaded, playerPosRef, isMoving,
+    gameTime, stats, isLoaded, playerPosRef,
     addTime, modifyStat, updateStats, onResetWorld, changeVehicle,
-    spawnItem, spawnWorldObject, // [NEW]
-    save,
-    isLocationOpen, setIsLocationOpen
+    spawnItem, spawnWorldObject, save,
+    isLocationOpen, setIsLocationOpen,
+    assemblyTargetId, setAssemblyTargetId
   } = useGame();
 
   const [activeWindow, setActiveWindow] = useState(null);
@@ -35,9 +36,9 @@ export default function GameUI({ children }) {
       setIsLocationOpen(false);
       setActiveWindow(id);
   };
-
   const closeWindow = () => setActiveWindow(null);
 
+  // Weather & Sleep state
   const [sleepState, setSleepState] = useState({ active: false, config: { minutes: 0, fatigueRegen: 0 } });
   const [currentWeather, setCurrentWeather] = useState({ condition: 'clear', temp: 20, wind: 0, pressure: 760, humidity: 50 });
   const playerTile = useMemo(() => {
@@ -55,10 +56,8 @@ export default function GameUI({ children }) {
 
   if (!isLoaded) return <div style={{ background: "#111", minHeight: "100vh", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center" }}>LOADING...</div>;
 
-  const handleContextMenu = (e) => { e.preventDefault(); };
-
   return (
-    <div onContextMenu={handleContextMenu} style={{ position: "relative", minHeight: "100vh", background: "#111", overflow: "hidden", userSelect: "none" }}>
+    <div onContextMenu={(e) => e.preventDefault()} style={{ position: "relative", minHeight: "100vh", background: "#111", overflow: "hidden", userSelect: "none" }}>
       <div style={{ position: "absolute", top: 0, left: 0, zIndex: 0, width: "100%", height: "100%" }}>{children}</div>
 
       <WeatherOverlay weather={currentWeather} gameTime={gameTime} />
@@ -86,17 +85,18 @@ export default function GameUI({ children }) {
         {activeWindow === 'character' && <div style={{pointerEvents:"auto"}}><CharacterWindow onClose={closeWindow}/></div>}
         {activeWindow === 'skills' && <div style={{pointerEvents:"auto"}}><SkillsWindow onClose={closeWindow}/></div>}
 
+        {/* Vehicle Assembly Window */}
+        {assemblyTargetId && (
+            <div style={{pointerEvents:"auto"}}>
+                <VehicleAssemblyWindow onClose={() => setAssemblyTargetId(null)} />
+            </div>
+        )}
+
         <div style={{ position: 'absolute', top: 0, left: 0, pointerEvents: "auto" }}>
             <DevConsole
-                onAddSteps={addTime}
-                onAddStat={modifyStat}
-                onUpdateStats={updateStats}
-                onReset={onResetWorld}
-                onSetVehicle={changeVehicle}
-                onSpawnItem={spawnItem}
-                onSpawnWorldObject={spawnWorldObject} // [NEW] Передаем функцию
-                gameTime={gameTime}
-                onSave={save}
+                onAddSteps={addTime} onAddStat={modifyStat} onUpdateStats={updateStats} onReset={onResetWorld}
+                onSetVehicle={changeVehicle} onSpawnItem={spawnItem} onSpawnWorldObject={spawnWorldObject}
+                gameTime={gameTime} onSave={save}
             />
         </div>
 

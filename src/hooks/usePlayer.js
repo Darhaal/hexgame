@@ -23,6 +23,9 @@ export function usePlayer(gameTimeRef) {
   const characterRef = useRef(INITIAL_CHARACTER);
   const currentVehicleIdRef = useRef("none");
 
+  // Аккумулятор для троттлинга обновлений UI
+  const uiUpdateAccumulator = useRef(0);
+
   // --- STATE (Для UI) ---
   const [playerState, setPlayerState] = useState({
     stats: INITIAL_STATS,
@@ -45,10 +48,8 @@ export function usePlayer(gameTimeRef) {
       characterRef.current = loaded.character || INITIAL_CHARACTER;
       currentVehicleIdRef.current = loaded.vehicle || "none";
 
-      // Синхронизируем движок транспорта
       setVehicle(loaded.vehicle || "none");
 
-      // Обновляем UI
       setPlayerState({
         stats: loaded.stats,
         inventory: loaded.inventory || createInitialInventory(),
@@ -75,15 +76,22 @@ export function usePlayer(gameTimeRef) {
     );
   }, [gameTimeRef]);
 
-  // --- ОБНОВЛЕНИЕ В ЦИКЛЕ (TICK) ---
+  // --- GAME TICK UPDATE ---
   const updateStats = useCallback((deltaMinutes) => {
+    // 1. Обновляем физику (Ref) - Всегда
     const newStats = calculateStatsDecay(statsRef.current, deltaMinutes);
     statsRef.current = newStats;
-    // Обновляем UI стейт частично (только статы) для оптимизации
-    setPlayerState(prev => ({ ...prev, stats: newStats }));
+
+    // 2. Обновляем UI (State) - С задержкой (Троттлинг)
+    // Обновляем UI только раз в 5 игровых минут, чтобы избежать перерисовок каждый кадр
+    uiUpdateAccumulator.current += deltaMinutes;
+    if (uiUpdateAccumulator.current >= 5) {
+        setPlayerState(prev => ({ ...prev, stats: newStats }));
+        uiUpdateAccumulator.current = 0;
+    }
   }, []);
 
-  // --- ДЕЙСТВИЯ (ACTIONS) ---
+  // --- ДЕЙСТВИЯ ---
 
   const modifyStat = useCallback((type, amount) => {
     const currentVal = statsRef.current[type];
@@ -98,7 +106,6 @@ export function usePlayer(gameTimeRef) {
     inventoryRef.current = newInv;
 
     if (effect) {
-      // Примитивная обработка эффектов (можно вынести в EffectManager)
       let updatedStats = { ...statsRef.current };
       if (effect.food) updatedStats.food = Math.min(100, updatedStats.food + effect.food);
       if (effect.water) updatedStats.water = Math.min(100, updatedStats.water + effect.water);
@@ -137,7 +144,6 @@ export function usePlayer(gameTimeRef) {
   }, [save]);
 
   const upgradeSkill = useCallback(() => {
-    // Заглушка прокачки
     const newSkills = { ...skillsRef.current };
     for (const key in newSkills) {
       newSkills[key].xp += 10;
@@ -176,9 +182,7 @@ export function usePlayer(gameTimeRef) {
     skillsRef,
     characterRef,
     currentVehicleIdRef,
-    // UI State
     ...playerState,
-    // Methods
     updateStats,
     modifyStat,
     useItem,
